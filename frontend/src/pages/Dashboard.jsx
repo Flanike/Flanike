@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff } from "lucide-react";
+import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff, DownloadCloud, CheckCircle2 } from "lucide-react";
 import { formsApi, catalogApi, trySync } from "@/lib/api";
 import { ATIVIDADES } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
 import { useOnline } from "@/hooks/useOnline";
 import { subscribeSyncState, getQueue, getLocalForms } from "@/lib/syncQueue";
+import { subscribeBootstrap, runBootstrap } from "@/lib/offlineBootstrap";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -18,7 +19,13 @@ const Dashboard = () => {
     localForms: getLocalForms(),
   });
   const [syncing, setSyncing] = useState(false);
+  const [bootstrap, setBootstrap] = useState({ status: "idle", progress: 0, total: 0, message: "" });
   const online = useOnline();
+
+  useEffect(() => {
+    const unsub = subscribeBootstrap(setBootstrap);
+    return unsub;
+  }, []);
 
   useEffect(() => {
     // Re-leitura imediata + assina mudanças
@@ -132,6 +139,42 @@ const Dashboard = () => {
           Serviço Antivetorial — Controle da Dengue
         </p>
       </header>
+
+      {/* Bootstrap indicator */}
+      {bootstrap.status === "running" && (
+        <div className="px-5 mt-3" data-testid="bootstrap-running">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center gap-2 text-xs text-blue-800">
+            <DownloadCloud className="w-4 h-4 animate-pulse" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium">Preparando uso offline…</p>
+              <p className="text-blue-700/70 truncate">{bootstrap.message}</p>
+            </div>
+            {bootstrap.total > 0 && (
+              <span className="text-[10px] font-semibold tabular-nums">
+                {bootstrap.progress}/{bootstrap.total}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+      {bootstrap.status === "done" && bootstrap.lastRun && (
+        <div className="px-5 mt-3" data-testid="bootstrap-done">
+          <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2 text-xs text-green-800">
+            <CheckCircle2 className="w-4 h-4" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium">Pronto para uso offline</p>
+              <p className="text-green-700/70 truncate">Catálogo cacheado no dispositivo</p>
+            </div>
+            <button
+              onClick={() => runBootstrap({ force: true })}
+              className="text-[10px] font-semibold underline text-green-700 hover:text-green-900"
+              data-testid="bootstrap-refresh"
+            >
+              Atualizar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="px-5 mt-5 grid grid-cols-2 gap-3">

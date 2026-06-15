@@ -5,6 +5,7 @@ import FormEditor from "@/pages/FormEditor";
 import Catalogo from "@/pages/Catalogo";
 import Resumo from "@/pages/Resumo";
 import PrintD1 from "@/pages/PrintD1";
+import "@/lib/offlineBootstrap"; // dispara pré-cache agressivo na carga
 
 function App() {
   return (

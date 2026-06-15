@@ -20,14 +20,12 @@ export const TIPOS_IMOVEL = [
 export const TIPOS_VISITA = [
   { value: "N", label: "N – Normal" },
   { value: "R", label: "R – Recuperada" },
-  { value: "Rec", label: "Rec – Recusa" },
 ];
 
 export const PENDENCIAS = [
   { value: "", label: "—" },
   { value: "F", label: "F – Fechada" },
   { value: "R", label: "R – Recusa" },
-  { value: "Rec", label: "Rec – Recuperada" },
 ];
 
 export const LADOS = [
