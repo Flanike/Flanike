@@ -127,8 +127,8 @@ input[type=number] {
     border: 0.5pt solid #000;
     padding: 1pt 2pt;
     vertical-align: middle;
-    font-size: 6.5pt;
-    line-height: 1.1;
+    font-size: 7pt;
+    line-height: 1.15;
     word-wrap: break-word;
     overflow: hidden;
 }
@@ -138,6 +138,7 @@ input[type=number] {
     font-weight: 700;
     text-align: center;
     text-transform: none;
+    font-size: 6.8pt;
 }
 
 .d1-c {
@@ -170,7 +171,7 @@ input[type=number] {
 
 /* Linhas de visita ficam com altura fixa para imitar a malha do D1 */
 .d1-visits tbody tr {
-    height: 16pt;
+    height: 22pt;
 }
 
 .d1-visits tbody tr.filled .d1-c {
@@ -180,10 +181,11 @@ input[type=number] {
 .d1-visits tr.totals .d1-c {
     background: #E2E8F0;
     font-weight: 700;
+    height: 18pt;
 }
 
 .d1-visits tr.signatures .d1-c {
-    height: 24pt;
+    height: 28pt;
     vertical-align: bottom;
 }
 
