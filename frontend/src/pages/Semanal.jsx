@@ -145,7 +145,7 @@ const Semanal = () => {
                           {w.week}
                           <div className="text-[10px] text-slate-500 font-normal">{formatRange(w.start, w.end)}</div>
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums">{w.quarteiroes_count}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{w.quarteiroes_concluidos_count ?? 0}</td>
                         <td className="px-3 py-2 text-right tabular-nums font-semibold">{w.informados}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{w.trabalhados}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{w.pendentes}</td>
@@ -155,7 +155,7 @@ const Semanal = () => {
                     ))}
                     <tr className="bg-blue-50 font-semibold text-blue-900" data-testid="week-total">
                       <td className="px-3 py-2">TOTAL</td>
-                      <td className="px-3 py-2 text-right tabular-nums">—</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{data.total.quarteiroes_concluidos ?? 0}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{data.total.informados || 0}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{data.total.trabalhados || 0}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{data.total.pendentes || 0}</td>

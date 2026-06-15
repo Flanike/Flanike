@@ -403,8 +403,15 @@ async def _refresh_quarteirao_totals(quarteirao: str):
 
 @api_router.get("/forms/stats/weekly")
 async def stats_weekly():
-    """Resumo semanal dos formulários (similar à aba RESUMO da planilha)."""
+    """Resumo semanal dos formulários (similar à aba RESUMO da planilha).
+
+    Regra de Quarteirão Concluído: um QT só é considerado concluído quando TODOS
+    os imóveis cadastrados naquele quarteirão foram visitados em algum
+    formulário. O QT é atribuído à semana em que o último imóvel pendente
+    daquele quarteirão foi visitado.
+    """
     forms = await db.d1_forms.find({}, {"_id": 0}).to_list(5000)
+    imoveis_cad = await db.imoveis.find({}, {"_id": 0, "quarteirao": 1, "logradouro": 1, "numero": 1}).to_list(5000)
 
     weeks: dict = {}
 
@@ -417,6 +424,19 @@ async def stats_weekly():
             return None
         iso_year, iso_week, _ = d.isocalendar()
         return f"{iso_year}-W{iso_week:02d}", d
+
+    # Mapa: quarteirão -> set de chaves de imóveis cadastrados (lower-cased)
+    cad_by_qt: dict[str, set[str]] = {}
+    for im in imoveis_cad:
+        qt = str(im.get("quarteirao") or "").strip()
+        log = str(im.get("logradouro") or "").strip().lower()
+        num = str(im.get("numero") or "").strip().lower()
+        if not qt:
+            continue
+        cad_by_qt.setdefault(qt, set()).add(f"{log}|{num}")
+
+    # Mapa: (qt, imóvel_key) -> (data, week_key) da PRIMEIRA visita registrada
+    first_visit: dict[tuple, tuple] = {}
 
     for f in forms:
         wk = week_key(f.get("data_atividade", ""))
@@ -468,12 +488,45 @@ async def stats_weekly():
             qt = (v.get("quarteirao") or "").strip()
             if qt:
                 w["quarteiroes"].add(qt)
+                # Rastreia primeira visita de cada imóvel (qt, log, num)
+                log = str(v.get("logradouro") or "").strip().lower()
+                num = str(v.get("numero") or "").strip().lower()
+                im_key = (qt, f"{log}|{num}")
+                prev = first_visit.get(im_key)
+                if prev is None or ref_date < prev[0]:
+                    first_visit[im_key] = (ref_date, key)
+
+    # ===== Cálculo de Quarteirões Concluídos por semana =====
+    # Um QT é concluído quando TODOS os imóveis cadastrados naquele QT foram
+    # visitados. A semana de conclusão = semana da visita mais tardia entre as
+    # primeiras visitas de seus imóveis.
+    concluded_by_week: dict[str, list[str]] = {}
+    for qt, cad_keys in cad_by_qt.items():
+        if not cad_keys:
+            continue
+        latest_week_key = None
+        latest_date = None
+        all_visited = True
+        for ik in cad_keys:
+            fv = first_visit.get((qt, ik))
+            if fv is None:
+                all_visited = False
+                break
+            d, wk = fv
+            if latest_date is None or d > latest_date:
+                latest_date = d
+                latest_week_key = wk
+        if all_visited and latest_week_key:
+            concluded_by_week.setdefault(latest_week_key, []).append(qt)
 
     result = []
     for k in sorted(weeks.keys()):
         w = weeks[k]
         w["quarteiroes_count"] = len(w["quarteiroes"])
         w["quarteiroes"] = sorted(w["quarteiroes"], key=lambda x: int(x) if x.isdigit() else 0)
+        concluded = concluded_by_week.get(k, [])
+        w["quarteiroes_concluidos"] = sorted(concluded, key=lambda x: int(x) if x.isdigit() else 0)
+        w["quarteiroes_concluidos_count"] = len(concluded)
         result.append(w)
 
     # Totais agregados
@@ -485,6 +538,7 @@ async def stats_weekly():
         "recuperados": sum(w["recuperados"] for w in result),
         "focos": sum(w["focos"] for w in result),
         "tratados": sum(w["tratados"] for w in result),
+        "quarteiroes_concluidos": sum(w["quarteiroes_concluidos_count"] for w in result),
     }
     return {"weeks": result, "total": total}
 

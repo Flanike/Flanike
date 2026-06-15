@@ -195,9 +195,11 @@ const FormEditor = () => {
 
   const handleSave = async () => {
     setSaving(true);
+    // Garante valores fixos
+    const formToSave = { ...form, categoria: "BR", tipo: "Sede" };
     try {
       if (isNew) {
-        const created = await formsApi.create(form);
+        const created = await formsApi.create(formToSave);
         try {
           localStorage.removeItem(draftKey);
         } catch {}
@@ -211,7 +213,7 @@ const FormEditor = () => {
         // pequeno delay para o toast renderizar antes da nav
         setTimeout(() => navigate(`/form/${created.id}`, { replace: true }), 250);
       } else {
-        const updated = await formsApi.update(id, form);
+        const updated = await formsApi.update(id, formToSave);
         try {
           localStorage.removeItem(draftKey);
         } catch {}
@@ -308,14 +310,24 @@ const FormEditor = () => {
             <input className={inputCls} value={form.localidade} onChange={(e) => set("localidade", e.target.value)} placeholder="Ex: 246 - Conjunto Aluízio Bezerra" data-testid="input-localidade" />
           </Field>
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Categoria">
-              <input className={inputCls} value={form.categoria} onChange={(e) => set("categoria", e.target.value)} placeholder="BR" data-testid="input-categoria" />
+            <Field label="Categoria" hint="Fixo">
+              <input
+                className={`${inputCls} bg-slate-50 text-slate-500 cursor-not-allowed`}
+                value="BR"
+                readOnly
+                data-testid="input-categoria"
+              />
             </Field>
             <Field label="Zona">
               <input className={inputCls} value={form.zona} onChange={(e) => set("zona", e.target.value)} placeholder="14" data-testid="input-zona" />
             </Field>
-            <Field label="Tipo">
-              <input className={inputCls} value={form.tipo} onChange={(e) => set("tipo", e.target.value)} placeholder="Sede" data-testid="input-tipo" />
+            <Field label="Tipo" hint="Fixo">
+              <input
+                className={`${inputCls} bg-slate-50 text-slate-500 cursor-not-allowed`}
+                value="Sede"
+                readOnly
+                data-testid="input-tipo"
+              />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">

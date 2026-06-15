@@ -74,9 +74,9 @@ export const emptyVisit = () => ({
 export const emptyForm = () => ({
   municipio: "",
   localidade: "",
-  categoria: "",
+  categoria: "BR",
   zona: "",
-  tipo: "",
+  tipo: "Sede",
   folha: "",
   data_atividade: new Date().toISOString().slice(0, 10),
   atividade: "",
