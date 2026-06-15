@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff, DownloadCloud, CheckCircle2, BarChart3, Copy, Eraser } from "lucide-react";
 import { formsApi, catalogApi, trySync } from "@/lib/api";
-import { ATIVIDADES } from "@/constants/d1";
+import { ATIVIDADES, imovelKey } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
 import { useOnline } from "@/hooks/useOnline";
 import { subscribeSyncState, getQueue, getLocalForms } from "@/lib/syncQueue";
@@ -14,6 +14,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [catalogStats, setCatalogStats] = useState({ imoveis: 0, quarteiroes: 0 });
+  const [cycleProgress, setCycleProgress] = useState({ concluidos: 0, total: 0, imoveisVisitados: 0, imoveisTotal: 0 });
   const [syncState, setSyncState] = useState({
     queueSize: getQueue().length,
     localForms: getLocalForms(),
@@ -72,6 +73,32 @@ const Dashboard = () => {
     Promise.all([catalogApi.quarteiroes(), catalogApi.countImoveis()])
       .then(([qs, { total }]) => {
         setCatalogStats({ imoveis: total, quarteiroes: qs.length });
+      })
+      .catch(() => {});
+    // Calcula progresso do ciclo: QT concluídos = todos imóveis do QT visitados
+    Promise.all([
+      catalogApi.imoveis(),
+      catalogApi.visited().catch(() => ({ keys: [] })),
+    ])
+      .then(([ims, v]) => {
+        const visitedSet = new Set(v.keys || []);
+        const byQt = {};
+        ims.forEach((im) => {
+          const k = String(im.quarteirao || "");
+          if (!k) return;
+          if (!byQt[k]) byQt[k] = { total: 0, visitados: 0 };
+          byQt[k].total += 1;
+          if (visitedSet.has(imovelKey(im))) byQt[k].visitados += 1;
+        });
+        const qts = Object.values(byQt);
+        const concluidos = qts.filter((q) => q.total > 0 && q.visitados >= q.total).length;
+        const imoveisVisitados = ims.filter((im) => visitedSet.has(imovelKey(im))).length;
+        setCycleProgress({
+          concluidos,
+          total: qts.length,
+          imoveisVisitados,
+          imoveisTotal: ims.length,
+        });
       })
       .catch(() => {});
   }, []);
@@ -176,8 +203,66 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Cycle Progress Ring */}
+      <div className="px-5 mt-5" data-testid="cycle-ring-card">
+        <button
+          onClick={() => navigate("/resumo")}
+          className="w-full bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900 hover:from-slate-800 active:from-slate-950 rounded-2xl border border-blue-950 shadow-lg p-5 flex items-center gap-5 transition-colors text-left"
+        >
+          {(() => {
+            const total = cycleProgress.total || 0;
+            const done = cycleProgress.concluidos || 0;
+            const pct = total > 0 ? (done / total) * 100 : 0;
+            const r = 36;
+            const C = 2 * Math.PI * r;
+            const off = C - (Math.min(100, pct) / 100) * C;
+            return (
+              <>
+                <div className="relative shrink-0" data-testid="cycle-ring">
+                  <svg width="92" height="92" viewBox="0 0 92 92" className="-rotate-90">
+                    <circle cx="46" cy="46" r={r} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="8" />
+                    <circle
+                      cx="46" cy="46" r={r} fill="none"
+                      stroke="url(#cycleGrad)"
+                      strokeWidth="8" strokeLinecap="round"
+                      strokeDasharray={C}
+                      strokeDashoffset={off}
+                      style={{ transition: "stroke-dashoffset 700ms ease" }}
+                    />
+                    <defs>
+                      <linearGradient id="cycleGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#34d399" />
+                        <stop offset="100%" stopColor="#10b981" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-lg font-semibold text-white font-display tabular-nums">
+                      {pct.toFixed(0)}%
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-emerald-200/90 uppercase tracking-widest font-semibold">Ciclo atual</p>
+                  <p className="text-2xl font-semibold text-white font-display leading-tight">
+                    <span className="tabular-nums" data-testid="cycle-done">{done}</span>
+                    <span className="text-emerald-200/70 mx-1.5">/</span>
+                    <span className="tabular-nums" data-testid="cycle-total">{total}</span>
+                    <span className="text-sm text-emerald-100/80 font-normal ml-2">QT concluídos</span>
+                  </p>
+                  <p className="text-[11px] text-blue-200/80 mt-1">
+                    {cycleProgress.imoveisVisitados} de {cycleProgress.imoveisTotal} imóveis visitados
+                  </p>
+                </div>
+                <Target className="w-5 h-5 text-emerald-300/80 shrink-0" />
+              </>
+            );
+          })()}
+        </button>
+      </div>
+
       {/* Stats */}
-      <div className="px-5 mt-5 grid grid-cols-2 gap-3">
+      <div className="px-5 mt-3 grid grid-cols-2 gap-3">
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
           <p className="text-xs text-slate-500 uppercase tracking-wider">Formulários</p>
           <p className="text-3xl font-semibold text-slate-900 font-display" data-testid="forms-count">
