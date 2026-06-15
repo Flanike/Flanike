@@ -23,6 +23,7 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
   const [search, setSearch] = useState("");
   const [visitedSet, setVisitedSet] = useState(new Set());
   const [editorOpen, setEditorOpen] = useState(false);
+  const [filterLado, setFilterLado] = useState("all");
 
   const reloadImoveis = () => {
     if (!qt) return;
@@ -56,15 +57,30 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
       .finally(() => setLoading(false));
   }, [qt, open]);
 
+  const ladosDisponiveis = useMemo(() => {
+    const set = new Set();
+    imoveis.forEach((i) => {
+      if (i.lado !== null && i.lado !== undefined && i.lado !== "") set.add(String(i.lado));
+    });
+    return Array.from(set).sort((a, b) => Number(a) - Number(b));
+  }, [imoveis]);
+
+  // Reseta filtro de lado ao trocar de quarteirão / abrir
+  useEffect(() => {
+    setFilterLado("all");
+  }, [qt, open]);
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return imoveis;
+    let arr = imoveis;
+    if (filterLado !== "all") arr = arr.filter((i) => String(i.lado) === String(filterLado));
+    if (!search.trim()) return arr;
     const s = search.toLowerCase();
-    return imoveis.filter(
+    return arr.filter(
       (i) =>
         i.logradouro.toLowerCase().includes(s) ||
         String(i.numero).toLowerCase().includes(s)
     );
-  }, [imoveis, search]);
+  }, [imoveis, search, filterLado]);
 
   const byLado = useMemo(() => {
     const map = {};
@@ -133,6 +149,38 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
                 onChange={(e) => setSearch(e.target.value)}
                 data-testid="picker-search"
               />
+            </div>
+          )}
+          {qt && ladosDisponiveis.length > 0 && (
+            <div data-testid="picker-lado-filter-wrap">
+              <span className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Lado</span>
+              <div className="flex gap-1.5 flex-wrap">
+                <button
+                  onClick={() => setFilterLado("all")}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-md border transition-colors ${
+                    filterLado === "all"
+                      ? "bg-blue-800 border-blue-800 text-white"
+                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
+                  data-testid="picker-lado-all"
+                >
+                  Todos
+                </button>
+                {ladosDisponiveis.map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => setFilterLado(l)}
+                    className={`text-xs font-medium px-3 py-1.5 rounded-md border transition-colors min-w-[40px] ${
+                      String(filterLado) === String(l)
+                        ? "bg-blue-800 border-blue-800 text-white"
+                        : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                    }`}
+                    data-testid={`picker-lado-${l}`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>

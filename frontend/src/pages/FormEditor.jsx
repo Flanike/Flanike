@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, ChevronRight, CheckCircle2, Circle, Download, WifiOff, Printer } from "lucide-react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Save, ChevronRight, CheckCircle2, Circle, Download, WifiOff, Printer, Eraser } from "lucide-react";
 import { formsApi, catalogApi } from "@/lib/api";
 import { ATIVIDADES, TIPOS_IMOVEL, LARVICIDAS, emptyForm, visitIsFilled } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
@@ -31,7 +31,10 @@ const SectionCard = ({ title, subtitle, children }) => (
 const FormEditor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isNew = !id || id === "new";
+  const isFresh = searchParams.get("fresh") === "1";
+  const isDuplicate = searchParams.get("duplicate") === "1";
 
   const [form, setForm] = useState(emptyForm());
   const [loading, setLoading] = useState(!isNew);
@@ -44,16 +47,45 @@ const FormEditor = () => {
   const draftKey = isNew ? "pncd_d1_draft_new" : `pncd_d1_draft_${id}`;
 
   useEffect(() => {
+    // Fresh: garante que nenhum rascunho atrapalhe
+    if (isNew && isFresh) {
+      try {
+        localStorage.removeItem(draftKey);
+        localStorage.removeItem("pncd_duplicate_seed");
+      } catch {}
+    }
+
+    // Duplicate: carrega o seed armazenado e preenche o form novo
+    let dupSeed = null;
+    if (isNew && isDuplicate) {
+      try {
+        const raw = localStorage.getItem("pncd_duplicate_seed");
+        if (raw) dupSeed = JSON.parse(raw);
+      } catch {
+        dupSeed = null;
+      }
+      // Limpa para não duplicar de novo em refreshes futuros
+      try { localStorage.removeItem("pncd_duplicate_seed"); } catch {}
+    }
+
     // Tenta recuperar rascunho local
     let draft = null;
     try {
       const raw = localStorage.getItem(draftKey);
-      if (raw) draft = JSON.parse(raw);
+      if (raw && !isFresh) draft = JSON.parse(raw);
     } catch {
       draft = null;
     }
 
     if (isNew) {
+      if (dupSeed) {
+        const visits = Array.from({ length: 20 }, (_, i) => dupSeed.visits?.[i] || {});
+        setForm({ ...emptyForm(), ...dupSeed, visits });
+        setDraftLoaded(true);
+        setToast({ type: "info", msg: "Duplicado do último — dados de visita zerados" });
+        setTimeout(() => setToast(null), 2500);
+        return;
+      }
       if (draft) {
         setForm({ ...emptyForm(), ...draft });
         setDraftLoaded(true);
@@ -117,7 +149,7 @@ const FormEditor = () => {
         setDraftLoaded(true);
       }
     })();
-  }, [id, isNew, draftKey]);
+  }, [id, isNew, draftKey, isFresh, isDuplicate]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
   const setVisit = (idx, newVisit) =>
@@ -226,6 +258,21 @@ const FormEditor = () => {
             <WifiOff className="w-3 h-3" /> Offline
           </span>
         )}
+        <button
+          onClick={() => {
+            if (!window.confirm("Limpar todo o formulário atual? Esta ação não pode ser desfeita.")) return;
+            try { localStorage.removeItem(draftKey); } catch {}
+            setForm(emptyForm());
+            setToast({ type: "info", msg: "Formulário limpo" });
+            setTimeout(() => setToast(null), 2000);
+          }}
+          className="w-10 h-10 rounded-full hover:bg-rose-50 flex items-center justify-center text-rose-600 hover:text-rose-700"
+          data-testid="header-clear"
+          aria-label="Limpar formulário"
+          title="Limpar formulário"
+        >
+          <Eraser className="w-5 h-5" />
+        </button>
         {!isNew && (
           <div className="relative">
             <button onClick={() => setExportOpen(!exportOpen)} className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center" data-testid="header-export">

@@ -26,6 +26,7 @@ const Catalogo = () => {
   const [search, setSearch] = useState("");
   const [visitedSet, setVisitedSet] = useState(new Set());
   const [filterVisited, setFilterVisited] = useState("all"); // all | visited | pending
+  const [filterLado, setFilterLado] = useState("all"); // "all" ou número 1-10
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState("create"); // create | edit
   const [editingImovel, setEditingImovel] = useState(null);
@@ -78,8 +79,22 @@ const Catalogo = () => {
     catalogApi.imoveis({ quarteirao: selectedQt }).then(setImoveis).catch(() => setImoveis([]));
   }, [selectedQt]);
 
+  const ladosDisponiveis = useMemo(() => {
+    const set = new Set();
+    imoveis.forEach((i) => {
+      if (i.lado !== null && i.lado !== undefined && i.lado !== "") set.add(String(i.lado));
+    });
+    return Array.from(set).sort((a, b) => Number(a) - Number(b));
+  }, [imoveis]);
+
+  // Reseta filtro de lado quando muda de quarteirão
+  useEffect(() => {
+    setFilterLado("all");
+  }, [selectedQt]);
+
   const filtered = useMemo(() => {
     let arr = imoveis;
+    if (filterLado !== "all") arr = arr.filter((i) => String(i.lado) === String(filterLado));
     if (filterVisited === "visited")
       arr = arr.filter((i) => visitedSet.has(imovelKey(i)));
     else if (filterVisited === "pending")
@@ -91,7 +106,7 @@ const Catalogo = () => {
         i.logradouro.toLowerCase().includes(s) ||
         String(i.numero).toLowerCase().includes(s)
     );
-  }, [imoveis, search, visitedSet, filterVisited]);
+  }, [imoveis, search, visitedSet, filterVisited, filterLado]);
 
   const qtStats = useMemo(() => {
     if (!selectedQt) return null;
@@ -301,6 +316,38 @@ const Catalogo = () => {
                     </button>
                   ))}
                 </div>
+                {ladosDisponiveis.length > 0 && (
+                  <div data-testid="lado-filter-wrap">
+                    <span className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Filtrar por lado</span>
+                    <div className="flex gap-1.5 flex-wrap">
+                      <button
+                        onClick={() => setFilterLado("all")}
+                        className={`text-xs font-medium px-3 py-1.5 rounded-md border transition-colors ${
+                          filterLado === "all"
+                            ? "bg-blue-800 border-blue-800 text-white"
+                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                        }`}
+                        data-testid="lado-filter-all"
+                      >
+                        Todos
+                      </button>
+                      {ladosDisponiveis.map((l) => (
+                        <button
+                          key={l}
+                          onClick={() => setFilterLado(l)}
+                          className={`text-xs font-medium px-3 py-1.5 rounded-md border transition-colors min-w-[40px] ${
+                            String(filterLado) === String(l)
+                              ? "bg-blue-800 border-blue-800 text-white"
+                              : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                          }`}
+                          data-testid={`lado-filter-${l}`}
+                        >
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>

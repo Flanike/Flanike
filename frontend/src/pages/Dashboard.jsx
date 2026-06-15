@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff, DownloadCloud, CheckCircle2, BarChart3 } from "lucide-react";
+import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff, DownloadCloud, CheckCircle2, BarChart3, Copy, Eraser } from "lucide-react";
 import { formsApi, catalogApi, trySync } from "@/lib/api";
 import { ATIVIDADES } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
@@ -223,6 +223,82 @@ const Dashboard = () => {
           <p className="text-xs text-indigo-100 uppercase tracking-wider font-medium">Semanal</p>
           <p className="text-sm font-semibold text-white font-display leading-tight">Resumo Semanal</p>
           <p className="text-[10px] text-indigo-100/80 mt-1">Estatísticas por semana</p>
+        </button>
+      </div>
+
+      {/* Quick actions */}
+      <div className="px-5 mt-4 grid grid-cols-2 gap-3" data-testid="quick-actions">
+        <button
+          onClick={async () => {
+            if (!forms.length) return;
+            // Duplica o último formulário: copia cabeçalho + imóveis das visitas (sem dados de visita)
+            try {
+              const last = await formsApi.get(forms[0].id);
+              const seedVisits = (last.visits || []).map((v) => ({
+                quarteirao: v.quarteirao || "",
+                lado: v.lado || "",
+                logradouro: v.logradouro || "",
+                numero: v.numero || "",
+                seq: v.seq || "",
+                tipo_imovel: v.tipo_imovel || "",
+                visita_n: "",
+                imovel_com_foco: false,
+                imovel_tratado: false,
+                larvicida: "",
+                larvicida_quantidade: "",
+                qtde_dep_tratados: "",
+              }));
+              const seed = {
+                municipio: last.municipio || "",
+                localidade: last.localidade || "",
+                categoria: last.categoria || "",
+                zona: last.zona || "",
+                tipo: last.tipo || "",
+                folha: last.folha || "",
+                atividade: last.atividade || "",
+                quarteiroes_trabalhados: last.quarteiroes_trabalhados || "",
+                quarteiroes_concluidos: last.quarteiroes_concluidos || "",
+                visits: seedVisits,
+              };
+              localStorage.setItem("pncd_duplicate_seed", JSON.stringify(seed));
+              // Limpa eventual rascunho anterior do "new" para o seed vingar
+              localStorage.removeItem("pncd_d1_draft_new");
+              navigate("/form/new?duplicate=1");
+            } catch (e) {
+              alert("Não foi possível duplicar o último formulário.");
+            }
+          }}
+          disabled={!forms.length}
+          className="bg-white hover:bg-slate-50 active:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl border border-slate-200 p-3 shadow-sm flex items-center gap-2 transition-colors"
+          data-testid="duplicate-last-btn"
+        >
+          <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+            <Copy className="w-4 h-4 text-emerald-700" />
+          </div>
+          <div className="text-left min-w-0">
+            <p className="text-sm font-semibold text-slate-900 truncate">Duplicar último</p>
+            <p className="text-[11px] text-slate-500 truncate">Cabeçalho + imóveis</p>
+          </div>
+        </button>
+        <button
+          onClick={() => {
+            if (!window.confirm("Limpar rascunho atual e iniciar um formulário em branco?")) return;
+            try {
+              localStorage.removeItem("pncd_d1_draft_new");
+              localStorage.removeItem("pncd_duplicate_seed");
+            } catch {}
+            navigate("/form/new?fresh=1");
+          }}
+          className="bg-white hover:bg-slate-50 active:bg-slate-100 rounded-xl border border-slate-200 p-3 shadow-sm flex items-center gap-2 transition-colors"
+          data-testid="clear-form-btn"
+        >
+          <div className="w-9 h-9 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center shrink-0">
+            <Eraser className="w-4 h-4 text-rose-700" />
+          </div>
+          <div className="text-left min-w-0">
+            <p className="text-sm font-semibold text-slate-900 truncate">Limpar formulário</p>
+            <p className="text-[11px] text-slate-500 truncate">Começar em branco</p>
+          </div>
         </button>
       </div>
 

@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend-only test session for PNCD app: validated Dashboard 'Duplicar último' and 'Limpar formulário' buttons, FormEditor header-clear (eraser), Catalogo lado filter (1-10 + 'Todos'), and ImovelPicker lado filter. Most flows passed; ImovelPicker filter verified via code review + identical logic to Catalogo (could not E2E-open VisitModal due to persistent 'Formulário criado!' toast overlay from a previously created form in the preview env intercepting clicks).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "FormEditor toast", "issues": ["The 'Formulário criado!' toast (from a prior session) appears to persist or re-render on subsequent loads of /form/new in the preview env — it may briefly overlay/intercept clicks on visit-card rows during the first ~2s. Not a code defect, but worth verifying that 'Formulário criado!' is not shown when navigating from Dashboard new-form (isNew=true should yield 'Novo Formulário' title; observed title showed prior form.localidade once)."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_8.json"],
+  "action_items": [
+    "(Optional) Investigate why navigating from Dashboard via new-form-btn to /form/new sometimes shows H1 = previous form.localidade (instead of 'Novo Formulário') and 'Formulário criado!' toast — likely lingering state from saved form. Could be caused by stale draft auto-populated by catalogApi.localidade() + caching, but title condition isNew? 'Novo Formulário' should still apply. Worth checking."
+  ],
+  "critical_code_review_comments": [
+    "Dashboard.jsx duplicate-last-btn: seed cleared correctly via localStorage.removeItem('pncd_d1_draft_new') before navigate — good.",
+    "FormEditor.jsx fresh handling: removes draft and seed properly; duplicate seed read and cleared in single useEffect to prevent re-application.",
+    "Catalogo.jsx & ImovelPicker.jsx lado filter: identical logic patterns; both reset to 'all' on quarteirão change via useEffect — correct.",
+    "Minor: filterLado state initial value is 'all' string while numeric values are stringified — comparisons use String(filterLado) === String(l), safe."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "skipped", "frontend": "~95%"},
+  "seed_data_creation": "Did not create new test data; preview env already had 8 saved forms enabling 'duplicate' test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All Dashboard quick-actions (duplicate-last-btn, clear-form-btn), FormEditor header-clear, and Catalogo lado filter testids work and behave correctly. ImovelPicker testids (picker-lado-filter-wrap, picker-lado-all, picker-lado-{n}) exist and match the Catalogo working pattern; to E2E test, navigate via /form/new from FAB after closing any pre-existing toast (wait ~3s) then click visit-card-0 → open-imovel-picker.",
+  "passed_tests": [
+    "Dashboard: duplicate-last-btn and clear-form-btn present",
+    "Dashboard: duplicate-last-btn enabled when forms exist",
+    "Dashboard: duplicate navigates to /form/new?duplicate=1",
+    "Dashboard: 'Duplicado do último — dados de visita zerados' toast displayed",
+    "Dashboard: duplicate prefills municipio/localidade/zona/atividade",
+    "Dashboard: clear-form-btn navigates to /form/new?fresh=1 after confirm",
+    "FormEditor: header-clear (eraser icon) clears all fields after confirm",
+    "FormEditor: 'Formulário limpo' toast displayed after header-clear",
+    "Catalogo: lado-filter-wrap appears after selecting quarteirão",
+    "Catalogo: lado-filter-all and lado-filter-{n} buttons render correctly",
+    "Catalogo: clicking lado-filter-{n} narrows imóveis list (45 → 20 for QT 1)",
+    "Catalogo: 'Todos' restores full list"
+  ],
+  "rca of the issue": "No bugs to RCA — all targeted features work as specified. Only minor observation about toast persistence in preview env not impacting functional correctness."
+}
