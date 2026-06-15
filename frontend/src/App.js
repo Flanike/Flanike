@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Dashboard from "@/pages/Dashboard";
 import FormEditor from "@/pages/FormEditor";
 import Catalogo from "@/pages/Catalogo";
+import Resumo from "@/pages/Resumo";
+import PrintD1 from "@/pages/PrintD1";
 
 function App() {
   return (
@@ -12,6 +14,8 @@ function App() {
         <Route path="/form/new" element={<FormEditor />} />
         <Route path="/form/:id" element={<FormEditor />} />
         <Route path="/catalogo" element={<Catalogo />} />
+        <Route path="/resumo" element={<Resumo />} />
+        <Route path="/print/:id" element={<PrintD1 />} />
       </Routes>
     </BrowserRouter>
   );

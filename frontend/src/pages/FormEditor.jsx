@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, ChevronRight, CheckCircle2, Circle, Download, WifiOff } from "lucide-react";
+import { ArrowLeft, Save, ChevronRight, CheckCircle2, Circle, Download, WifiOff, Printer } from "lucide-react";
 import { formsApi, catalogApi } from "@/lib/api";
 import { ATIVIDADES, TIPOS_IMOVEL, LARVICIDAS, emptyForm, visitIsFilled } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
@@ -137,6 +137,18 @@ const FormEditor = () => {
     }
   }, [form, draftKey, draftLoaded]);
 
+  // Pré-cache: ao alterar visitas, pré-busca imóveis dos quarteirões usados
+  useEffect(() => {
+    if (!draftLoaded) return;
+    const qts = new Set();
+    form.visits.forEach((v) => {
+      if (v?.quarteirao) qts.add(String(v.quarteirao));
+    });
+    qts.forEach((qt) => {
+      catalogApi.prefetchQuarteirao(qt);
+    });
+  }, [form.visits, draftLoaded]);
+
   const totals = useMemo(() => {
     const t = { R: 0, C: 0, TB: 0, PE: 0, O: 0 };
     form.visits.forEach((v) => {
@@ -150,34 +162,36 @@ const FormEditor = () => {
   }, [form.visits]);
 
   const handleSave = async () => {
-    if (!online) {
-      setToast({ type: "info", msg: "Sem internet — rascunho salvo localmente" });
-      setTimeout(() => setToast(null), 2500);
-      return;
-    }
     setSaving(true);
     try {
       if (isNew) {
         const created = await formsApi.create(form);
         try {
           localStorage.removeItem(draftKey);
-          // mover rascunho para a nova chave do id, vazio
         } catch {}
-        setToast({ type: "ok", msg: "Formulário criado!" });
+        if (created?.id?.startsWith("local_")) {
+          setToast({ type: "info", msg: "Sem internet — salvo na fila local" });
+        } else {
+          setToast({ type: "ok", msg: "Formulário criado!" });
+        }
         navigate(`/form/${created.id}`, { replace: true });
       } else {
-        await formsApi.update(id, form);
+        const updated = await formsApi.update(id, form);
         try {
           localStorage.removeItem(draftKey);
         } catch {}
-        setToast({ type: "ok", msg: "Alterações salvas" });
+        if (updated?._pending) {
+          setToast({ type: "info", msg: "Sem internet — alteração na fila" });
+        } else {
+          setToast({ type: "ok", msg: "Alterações salvas" });
+        }
       }
     } catch (e) {
       console.error(e);
       setToast({ type: "error", msg: "Erro ao salvar — rascunho mantido localmente" });
     } finally {
       setSaving(false);
-      setTimeout(() => setToast(null), 2200);
+      setTimeout(() => setToast(null), 2500);
     }
   };
 
@@ -215,9 +229,19 @@ const FormEditor = () => {
               <Download className="w-5 h-5 text-slate-700" />
             </button>
             {exportOpen && (
-              <div className="absolute right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden z-40">
-                <button onClick={() => handleExport("csv")} className="block w-full text-left px-5 py-2 text-sm hover:bg-slate-50" data-testid="header-export-csv">CSV</button>
-                <button onClick={() => handleExport("pdf")} className="block w-full text-left px-5 py-2 text-sm hover:bg-slate-50" data-testid="header-export-pdf">PDF</button>
+              <div className="absolute right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden z-40 min-w-[140px]">
+                <button
+                  onClick={() => {
+                    setExportOpen(false);
+                    navigate(`/print/${id}`);
+                  }}
+                  className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm hover:bg-slate-50"
+                  data-testid="header-print"
+                >
+                  <Printer className="w-4 h-4 text-slate-500" /> Imprimir D1
+                </button>
+                <button onClick={() => handleExport("pdf")} className="block w-full text-left px-4 py-2 text-sm hover:bg-slate-50" data-testid="header-export-pdf">Salvar PDF</button>
+                <button onClick={() => handleExport("csv")} className="block w-full text-left px-4 py-2 text-sm hover:bg-slate-50" data-testid="header-export-csv">Salvar CSV</button>
               </div>
             )}
           </div>
