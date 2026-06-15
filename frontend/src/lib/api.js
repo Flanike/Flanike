@@ -48,3 +48,10 @@ export const formsApi = {
     api.put(`/forms/${id}`, cleanPayload(data)).then((r) => r.data),
   remove: (id) => api.delete(`/forms/${id}`).then((r) => r.data),
 };
+
+export const catalogApi = {
+  localidade: () => api.get("/localidade").then((r) => r.data),
+  quarteiroes: () => api.get("/quarteiroes").then((r) => r.data),
+  imoveis: (params = {}) =>
+    api.get("/imoveis", { params }).then((r) => r.data),
+};

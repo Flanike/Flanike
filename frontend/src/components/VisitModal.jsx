@@ -1,7 +1,9 @@
-import { X, Check } from "lucide-react";
+import { useState } from "react";
+import { X, Check, Database } from "lucide-react";
 import {
   TIPOS_IMOVEL, TIPOS_VISITA, PENDENCIAS, LADOS, LARVICIDAS,
 } from "@/constants/d1";
+import ImovelPicker from "@/components/ImovelPicker";
 
 const Field = ({ label, children }) => (
   <label className="block">
@@ -14,8 +16,22 @@ const inputCls =
   "w-full border border-slate-300 rounded-lg px-3 py-2.5 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder-slate-400";
 
 const VisitModal = ({ open, index, visit, onChange, onClose }) => {
+  const [pickerOpen, setPickerOpen] = useState(false);
   if (!open) return null;
   const set = (key, val) => onChange({ ...visit, [key]: val });
+
+  const handlePick = (im) => {
+    onChange({
+      ...visit,
+      quarteirao: im.quarteirao || visit.quarteirao,
+      lado: im.lado || visit.lado,
+      logradouro: im.logradouro || "",
+      numero: im.numero ? String(im.numero) : "",
+      seq_numero: im.seq ? String(im.seq) : "",
+      tipo_imovel: im.tipo_imovel || visit.tipo_imovel,
+    });
+    setPickerOpen(false);
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center" data-testid="visit-modal">
@@ -37,6 +53,15 @@ const VisitModal = ({ open, index, visit, onChange, onClose }) => {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <button
+            onClick={() => setPickerOpen(true)}
+            className="w-full border border-blue-200 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 text-blue-800 font-medium rounded-lg px-4 py-3 flex items-center justify-center gap-2 transition-colors"
+            data-testid="open-imovel-picker"
+          >
+            <Database className="w-4 h-4" />
+            Buscar no cadastro
+          </button>
+
           <div className="grid grid-cols-3 gap-3">
             <Field label="Quart.">
               <input className={inputCls} value={visit.quarteirao} onChange={(e) => set("quarteirao", e.target.value)} data-testid="visit-quarteirao" />
@@ -137,6 +162,12 @@ const VisitModal = ({ open, index, visit, onChange, onClose }) => {
           </button>
         </div>
       </div>
+      <ImovelPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onPick={handlePick}
+        defaultQuarteirao={visit.quarteirao || ""}
+      />
     </div>
   );
 };

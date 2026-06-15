@@ -102,6 +102,46 @@ class D1FormSummary(BaseModel):
     updated_at: datetime
 
 
+class Imovel(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    quarteirao: str
+    lado: str
+    logradouro: str
+    numero: str
+    seq: str
+    tipo_imovel: str
+    hab: int = 0
+    cao: int = 0
+    gato: int = 0
+
+
+class Quarteirao(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    quarteirao: str
+    residencia: int = 0
+    comercio: int = 0
+    outros: int = 0
+    terreno_baldio: int = 0
+    soma_predios: int = 0
+    soma_imoveis: int = 0
+    habitantes: int = 0
+    cao: int = 0
+    gato: int = 0
+
+
+class Localidade(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    uf: str = ""
+    municipio_codigo: str = ""
+    municipio_nome: str = ""
+    localidade_codigo: str = ""
+    localidade_nome: str = ""
+    zona: str = ""
+
+
 def serialize_form(form: D1Form) -> dict:
     doc = form.model_dump()
     doc['created_at'] = doc['created_at'].isoformat() if isinstance(doc['created_at'], datetime) else doc['created_at']
@@ -205,6 +245,48 @@ async def delete_form(form_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Formulário não encontrado")
     return {"ok": True}
+
+
+# ===== Catálogo (da planilha base) =====
+
+@api_router.get("/localidade", response_model=Optional[Localidade])
+async def get_localidade():
+    doc = await db.localidade.find_one({}, {"_id": 0})
+    if not doc:
+        return None
+    return Localidade(**doc)
+
+
+@api_router.get("/quarteiroes", response_model=List[Quarteirao])
+async def list_quarteiroes():
+    docs = await db.quarteiroes.find({}, {"_id": 0}).to_list(1000)
+    # ordena numericamente
+    docs.sort(key=lambda d: int(d.get("quarteirao", "0") or 0))
+    return [Quarteirao(**d) for d in docs]
+
+
+@api_router.get("/imoveis", response_model=List[Imovel])
+async def list_imoveis(quarteirao: Optional[str] = None, lado: Optional[str] = None, q: Optional[str] = None):
+    """Lista imóveis cadastrados (da planilha base).
+
+    - quarteirao: filtra por nº de quarteirão (ex: "1")
+    - lado: filtra por lado dentro do quarteirão
+    - q: busca textual em logradouro/numero
+    """
+    query: dict = {}
+    if quarteirao:
+        query["quarteirao"] = str(quarteirao)
+    if lado:
+        query["lado"] = str(lado)
+    if q:
+        query["$or"] = [
+            {"logradouro": {"$regex": q, "$options": "i"}},
+            {"numero": {"$regex": q, "$options": "i"}},
+        ]
+    docs = await db.imoveis.find(query, {"_id": 0}).to_list(5000)
+    # ordena por lado e logradouro
+    docs.sort(key=lambda d: (int(d.get("lado", "0") or 0), d.get("logradouro", ""), d.get("numero", "")))
+    return [Imovel(**d) for d in docs]
 
 
 app.include_router(api_router)

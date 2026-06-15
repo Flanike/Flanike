@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save, ChevronRight, CheckCircle2, Circle, Download } from "lucide-react";
-import { formsApi } from "@/lib/api";
+import { formsApi, catalogApi } from "@/lib/api";
 import { ATIVIDADES, TIPOS_IMOVEL, CLASSIFICACAO_DEPOSITOS, LARVICIDAS, emptyForm, visitIsFilled } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
 import VisitModal from "@/components/VisitModal";
@@ -40,11 +40,33 @@ const FormEditor = () => {
   const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
-    if (isNew) return;
+    if (isNew) {
+      // Pré-preenche município/localidade/zona a partir da localidade cadastrada
+      catalogApi
+        .localidade()
+        .then((loc) => {
+          if (!loc) return;
+          setForm((f) => ({
+            ...f,
+            municipio:
+              f.municipio ||
+              (loc.municipio_codigo
+                ? `${loc.municipio_codigo} - ${loc.municipio_nome}`
+                : loc.municipio_nome || ""),
+            localidade:
+              f.localidade ||
+              (loc.localidade_codigo
+                ? `${loc.localidade_codigo} - ${loc.localidade_nome}`
+                : loc.localidade_nome || ""),
+            zona: f.zona || loc.zona || "",
+          }));
+        })
+        .catch(() => {});
+      return;
+    }
     (async () => {
       try {
         const data = await formsApi.get(id);
-        // normalize visits to 20
         const visits = [...(data.visits || [])];
         while (visits.length < 20) visits.push({});
         setForm({ ...emptyForm(), ...data, visits: visits.slice(0, 20) });

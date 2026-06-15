@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, FileText, Trash2, Download, Edit3, ClipboardList } from "lucide-react";
-import { formsApi } from "@/lib/api";
+import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database } from "lucide-react";
+import { formsApi, catalogApi } from "@/lib/api";
 import { ATIVIDADES } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
 
@@ -10,6 +10,7 @@ const Dashboard = () => {
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [menuOpenId, setMenuOpenId] = useState(null);
+  const [catalogStats, setCatalogStats] = useState({ imoveis: 0, quarteiroes: 0 });
 
   const load = async () => {
     setLoading(true);
@@ -25,6 +26,13 @@ const Dashboard = () => {
 
   useEffect(() => {
     load();
+    catalogApi
+      .quarteiroes()
+      .then((qs) => {
+        const total = qs.reduce((acc, q) => acc + (q.soma_imoveis || 0), 0);
+        setCatalogStats({ imoveis: total, quarteiroes: qs.length });
+      })
+      .catch(() => {});
   }, []);
 
   const handleDelete = async (id) => {
@@ -75,16 +83,26 @@ const Dashboard = () => {
       </header>
 
       {/* Stats */}
-      <div className="px-5 mt-5">
-        <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="text-xs text-slate-500 uppercase tracking-wider">Formulários salvos</p>
-            <p className="text-3xl font-semibold text-slate-900 font-display" data-testid="forms-count">
-              {loading ? "…" : forms.length}
-            </p>
-          </div>
-          <FileText className="w-8 h-8 text-blue-800/60" />
+      <div className="px-5 mt-5 grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <p className="text-xs text-slate-500 uppercase tracking-wider">Formulários</p>
+          <p className="text-3xl font-semibold text-slate-900 font-display" data-testid="forms-count">
+            {loading ? "…" : forms.length}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">salvos</p>
         </div>
+        <button
+          onClick={() => navigate("/catalogo")}
+          className="bg-blue-800 hover:bg-blue-900 active:bg-blue-950 rounded-xl border border-blue-900 p-4 shadow-sm text-left transition-colors"
+          data-testid="open-catalogo"
+        >
+          <div className="flex items-start justify-between">
+            <p className="text-xs text-blue-100 uppercase tracking-wider font-medium">Cadastro</p>
+            <Database className="w-5 h-5 text-blue-200" />
+          </div>
+          <p className="text-2xl font-semibold text-white font-display mt-2">{catalogStats.imoveis || "…"}</p>
+          <p className="text-xs text-blue-200 mt-1">imóveis · {catalogStats.quarteiroes} QT</p>
+        </button>
       </div>
 
       {/* List */}

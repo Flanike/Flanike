@@ -1,0 +1,32 @@
+{
+  "summary": "Iteration 2 — catálogo endpoints + UI flows. 14/14 backend pytest cases pass (100%). Validated: /api/localidade returns SANTA CRUZ + CONJUNTO ALUÍZIO BEZERRA/BAIRRO (RN, zona 14); /api/quarteiroes returns 33 docs in numeric order with QT1.soma_imoveis=45; /api/imoveis returns 988 rows w/ UUID id and full field shape; quarteirao/lado/q filters work; case-insensitive 'MARIA' search; QT99 returns []; valid tipo_imovel ∈ {R,C,TB,O,PE,''}; no _id leak; regression on /api/forms OK. Frontend (mobile 420x900): Dashboard 'Cadastro' card renders & navigates to /catalogo; /catalogo shows localidade card, totals, dropdown of 33 QT, QT3 lists 59 imóveis grouped by lado; /form/new auto-prefills municipio='2411205 - SANTA CRUZ', localidade='00246 - CONJUNTO ALUÍZIO BEZERRA/BAIRRO', zona='14'; VisitModal -> 'Buscar no cadastro' (open-imovel-picker) opens ImovelPicker; selecting QT3 → picking imóvel auto-fills visit-quarteirao='3', visit-logradouro='CASA 56 NA G. B.', visit-numero='108', visit-tipo-imovel='O' and closes the picker. Full chain working end-to-end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard 'Cadastro' card", "issues": ["Card shows 968 imóveis (sum of quarteirao.soma_imoveis from RG2CAB aggregate) but /api/imoveis collection actually has 988 rows. Source-data discrepancy from the spreadsheet — RG2CAB totals don't match the count of per-QT property rows. Consider showing the true count from /api/imoveis OR documenting that the dashboard reflects the aggregate tabulated in the spreadsheet."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_catalogo.py", "/app/backend/tests/test_d1_forms.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Minor) Reconcile 968 vs 988 mismatch: dashboard 'Cadastro' card sums quarteirao.soma_imoveis (968) while /api/imoveis has 988 actual rows. Either switch the dashboard to use the real imovel count (e.g. show count from /api/imoveis or add a `total_imoveis` aggregate endpoint) or document the difference. The 968 comes from the RG2CAB spreadsheet totals which underreport the per-QT row counts by 20.",
+    "(Minor pre-existing from iter 1, still applicable) VisitModal binds nullable numerics (depositos_eliminados, larvicida_quantidade, qtde_dep_tratados) directly to <input value=...> → React controlled/uncontrolled warning when server returns null. Use `?? ''` coercion.",
+    "Console hydration warning: <span> inside <option> in Catalogo.jsx (line 156) and ImovelPicker.jsx (line 95). Caused by the Emergent visual-editor inspector wrapping dynamic text in <span data-ve-dynamic>. Dev-only noise; not breaking production but worth knowing. If it persists in built output, simplify the option text expression."
+  ],
+  "critical_code_review_comments": [
+    "Backend /api/imoveis to_list(5000) — currently 988 rows so fine, but if the catalog grows past 5000 it'll truncate silently. Add pagination or raise the cap with a comment.",
+    "Catalogo.jsx & ImovelPicker.jsx sort by `Number(a.lado) - Number(b.lado)` — non-numeric or empty `lado` will collate as NaN. Currently OK because all lados are numeric strings, but consider falling back to alphabetical when NaN.",
+    "FormEditor prefill only runs when isNew; it overwrites only blank fields (good — uses `f.municipio || ...`). Pattern is correct.",
+    "ImovelPicker.onPick is invoked via parent VisitModal — assumed VisitModal.handlePick spreads quarteirao/lado/logradouro/numero/seq/tipo_imovel into visit state; verified via DOM inspection: visit-quarteirao='3', visit-logradouro='CASA 56 NA G. B.', visit-numero='108', visit-tipo-imovel='O' all set correctly.",
+    "import_xlsx.py: discrepancy between RG2CAB totals (968) and per-QT row counts (988) suggests the spreadsheet itself has internal inconsistency or the import counts rows including header/footer differently. Worth re-validating the import logic."
+  ],
+  "updated_files": ["/app/backend/tests/test_catalogo.py"],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "~95% — all catalog + prefill + picker flows verified; save-after-pick blocked only by test sequencing (modal still open by design)"},
+  "test_credentials": "N/A (no auth)",
+  "seed_data_creation": "Catalog data (1 localidade, 33 quarteiroes, 988 imoveis) already seeded by previous import script. Form lifecycle tests use TEST_-prefixed forms with cleanup.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Catalog endpoints fully covered in /app/backend/tests/test_catalogo.py. Frontend Playwright on viewport 420x900: visit-card-N click needs `await card.scroll_into_view_if_needed()` + plain click (no force). After picker closes via pick-imovel-{id}, the VisitModal stays open and intercepts pointer events on save-btn; click `save-visit-btn` (Concluir) first to close the modal, then save-btn. ImovelPicker correctly populates visit-quarteirao/lado/logradouro/numero/seq-numero/tipo-imovel from the chosen imóvel.",
+  "rca of the issue": "Dashboard 968 vs API 988 — Root cause: Dashboard.jsx aggregates `q.soma_imoveis` across quarteiroes (from RG2CAB sheet totals = 968) instead of using the count of imoveis collection (988). The RG2CAB sheet in the source spreadsheet underreports the per-QT row counts by 20 (likely the QT-level totals were typed by the field agent and don't perfectly match the row-by-row enumeration in the QT01–QT33 sheets). Mitigation options: (1) add GET /api/imoveis/count or expose total in /api/quarteiroes summary; (2) compute totals on the frontend from /api/imoveis; (3) accept the spreadsheet's tabulated total as authoritative and label clearly."
+}
