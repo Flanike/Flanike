@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Save, ChevronRight, CheckCircle2, Circle, Download, WifiOff, Printer, Eraser } from "lucide-react";
 import { formsApi, catalogApi } from "@/lib/api";
-import { ATIVIDADES, TIPOS_IMOVEL, LARVICIDAS, emptyForm, visitIsFilled } from "@/constants/d1";
+import { ATIVIDADES, TIPOS_IMOVEL, LARVICIDAS, emptyForm, visitIsFilled, imovelKey } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
 import VisitModal from "@/components/VisitModal";
 import { useOnline } from "@/hooks/useOnline";
@@ -619,6 +619,71 @@ const FormEditor = () => {
         onChange={(nv) => setVisit(visitOpenIdx, nv)}
         onClose={() => setVisitOpenIdx(null)}
         currentFormVisits={form.visits}
+        onConcludeAndNext={async () => {
+          // Determina quarteirão da visita atual
+          const cur = form.visits[visitOpenIdx] || {};
+          const qt = (cur.quarteirao || "").toString().trim();
+          if (!qt) {
+            alert("Defina o quarteirão antes de buscar o próximo pendente.");
+            return;
+          }
+          try {
+            // Busca catálogo do QT e visitados
+            const [imoveisQt, visitedResp] = await Promise.all([
+              catalogApi.imoveis({ quarteirao: qt }),
+              catalogApi.visited().catch(() => ({ keys: [] })),
+            ]);
+            const visited = new Set(visitedResp.keys || []);
+            // Adiciona chaves do form atual (todas as visitas já preenchidas, inclusive a atual)
+            form.visits.forEach((v) => {
+              if (v && (v.logradouro || v.numero || v.quarteirao)) visited.add(imovelKey(v));
+            });
+            // Ordena imóveis por lado/seq e pega o primeiro pendente
+            const ordered = [...imoveisQt].sort((a, b) => {
+              const la = Number(a.lado) || 0;
+              const lb = Number(b.lado) || 0;
+              if (la !== lb) return la - lb;
+              return (Number(a.seq) || 0) - (Number(b.seq) || 0);
+            });
+            const nextIm = ordered.find((im) => !visited.has(imovelKey(im)));
+            if (!nextIm) {
+              alert("Não há imóveis pendentes neste quarteirão.");
+              setVisitOpenIdx(null);
+              return;
+            }
+            // Encontra próximo slot vazio (após o atual)
+            const startIdx = (visitOpenIdx ?? 0) + 1;
+            let nextSlot = form.visits.findIndex((v, i) => i >= startIdx && !visitIsFilled(v));
+            if (nextSlot === -1) {
+              // procura do início
+              nextSlot = form.visits.findIndex((v) => !visitIsFilled(v));
+            }
+            if (nextSlot === -1) {
+              alert("Todas as 20 visitas estão preenchidas.");
+              setVisitOpenIdx(null);
+              return;
+            }
+            // Pré-preenche o slot com dados do próximo imóvel
+            setVisit(nextSlot, {
+              quarteirao: nextIm.quarteirao || "",
+              lado: nextIm.lado || "",
+              logradouro: nextIm.logradouro || "",
+              numero: nextIm.numero || "",
+              seq: nextIm.seq || "",
+              tipo_imovel: nextIm.tipo_imovel || "",
+              visita_n: "",
+              imovel_com_foco: false,
+              imovel_tratado: false,
+              larvicida: "",
+              larvicida_quantidade: "",
+              qtde_dep_tratados: "",
+            });
+            // Abre o novo slot
+            setVisitOpenIdx(nextSlot);
+          } catch (e) {
+            alert("Erro ao buscar próximo pendente: " + (e?.message || ""));
+          }
+        }}
       />
     </div>
   );

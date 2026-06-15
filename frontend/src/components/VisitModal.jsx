@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Check, Database } from "lucide-react";
+import { X, Check, Database, ChevronRight } from "lucide-react";
 import {
   TIPOS_IMOVEL, TIPOS_VISITA, PENDENCIAS, LADOS, LARVICIDAS,
 } from "@/constants/d1";
@@ -16,7 +16,7 @@ const Field = ({ label, children }) => (
 const inputCls =
   "w-full border border-slate-300 rounded-lg px-3 py-2.5 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder-slate-400";
 
-const VisitModal = ({ open, index, visit, onChange, onClose, currentFormVisits = [] }) => {
+const VisitModal = ({ open, index, visit, onChange, onClose, currentFormVisits = [], onConcludeAndNext }) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   if (!open) return null;
   const set = (key, val) => onChange({ ...visit, [key]: val });
@@ -158,14 +158,28 @@ const VisitModal = ({ open, index, visit, onChange, onClose, currentFormVisits =
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-200 p-4 bg-white">
+        <div className="border-t border-slate-200 p-4 bg-white flex gap-2">
           <button
             onClick={onClose}
-            className="w-full bg-blue-800 hover:bg-blue-900 text-white font-medium rounded-lg px-4 py-3 flex items-center justify-center gap-2"
+            className="flex-1 bg-blue-800 hover:bg-blue-900 text-white font-medium rounded-lg px-4 py-3 flex items-center justify-center gap-2"
             data-testid="save-visit-btn"
           >
-            <Check className="w-5 h-5" /> Concluir Visita
+            <Check className="w-5 h-5" /> Concluir
           </button>
+          {onConcludeAndNext && (
+            <button
+              onClick={onConcludeAndNext}
+              className="bg-emerald-700 hover:bg-emerald-800 text-white font-medium rounded-lg px-3 py-3 flex items-center justify-center gap-1.5 shrink-0"
+              data-testid="conclude-and-next-btn"
+              title="Concluir e ir para próximo imóvel pendente"
+            >
+              <span className="text-xs leading-tight text-left">
+                <span className="block opacity-80">Próximo</span>
+                <span className="block font-semibold">pendente</span>
+              </span>
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
       <ImovelPicker
