@@ -1,0 +1,106 @@
+{
+  "theme": "light",
+  "archetype": "4",
+  "archetype_name": "Swiss & High-Contrast (Adapted for Utilitarian Public Health)",
+  "emotional_tone": "Professional, Trustworthy, Efficient, Clear",
+  "typography": {
+    "heading_font": "Work Sans",
+    "body_font": "IBM Plex Sans",
+    "h1": "text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900",
+    "h2": "text-xl sm:text-2xl font-semibold tracking-tight text-slate-800",
+    "h3": "text-lg font-medium text-slate-800",
+    "body": "text-base text-slate-700 leading-relaxed",
+    "small": "text-sm text-slate-500 uppercase tracking-widest font-medium"
+  },
+  "colors": {
+    "primary": "#1E40AF",
+    "primary_hover": "#1E3A8A",
+    "background": "#F8FAFC",
+    "surface": "#FFFFFF",
+    "border": "#E2E8F0",
+    "text_main": "#0F172A",
+    "text_muted": "#64748B",
+    "success": "#059669",
+    "success_bg": "#D1FAE5",
+    "warning": "#D97706",
+    "warning_bg": "#FEF3C7",
+    "error": "#DC2626",
+    "error_bg": "#FEE2E2"
+  },
+  "spacing_and_layout": {
+    "container_padding": "p-4 sm:p-6",
+    "gap_standard": "gap-4",
+    "gap_large": "gap-8",
+    "border_radius": "rounded-xl",
+    "card_padding": "p-4",
+    "shadow_subtle": "shadow-sm",
+    "shadow_elevated": "shadow-md"
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-blue-800 hover:bg-blue-900 text-white font-medium rounded-lg px-4 py-3 transition-colors flex items-center justify-center gap-2",
+      "secondary": "bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded-lg px-4 py-3 transition-colors flex items-center justify-center gap-2",
+      "ghost": "hover:bg-slate-100 text-slate-600 rounded-lg px-4 py-3 transition-colors",
+      "fab": "fixed bottom-6 right-6 w-14 h-14 bg-blue-800 text-white rounded-full shadow-lg hover:bg-blue-900 flex items-center justify-center shadow-[0_8px_32px_rgba(30,64,175,0.3)] transition-transform hover:scale-105 z-50"
+    },
+    "inputs": {
+      "text": "w-full border border-slate-300 rounded-lg px-3 py-3 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder-slate-400 transition-shadow",
+      "label": "block text-sm font-medium text-slate-700 mb-1.5"
+    },
+    "cards": {
+      "base": "bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden",
+      "visit_empty": "bg-white border border-dashed border-slate-300 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors",
+      "visit_completed": "bg-white border border-slate-200 border-l-4 border-l-green-600 rounded-xl p-4 flex flex-col gap-2 cursor-pointer hover:shadow-md transition-all"
+    }
+  },
+  "icons": {
+    "library": "lucide-react",
+    "usage": "Use icons for navigation, visit status (check-circle for completed, circle for empty), and actions (export, edit, trash)."
+  },
+  "motion_and_interactions": {
+    "hover_states": "Buttons and cards should lift slightly (-translate-y-[1px]) and increase shadow on hover. On mobile, provide immediate visual feedback on tap (active:bg-slate-100).",
+    "transitions": "Use 'transition-all duration-200 ease-in-out' globally for color and shadow changes."
+  },
+  "accessibility": {
+    "contrast": "Ensure text contrast meets APCA/WCAG AA standards. Primary buttons must have white text against dark blue.",
+    "touch_targets": "All interactive elements must be at least 44x44px. Inputs should have ample padding (py-3).",
+    "test_ids": "Include descriptive data-testid attributes (e.g., 'new-form-btn', 'visit-card-5', 'export-pdf-btn', 'input-municipio')."
+  },
+  "views": [
+    {
+      "name": "Dashboard / Form List",
+      "description": "Main screen listing previously saved D1 forms.",
+      "layout": "Vertical list of cards. Each card displays Data, Localidade, Atividade, and a progress summary (e.g., '20/20 Visitas').",
+      "actions": "FAB to create new form. Swipe or dropdown on cards to Edit, Export, or Delete."
+    },
+    {
+      "name": "Form Entry - Header & Settings",
+      "description": "General data for the daily service summary.",
+      "layout": "Standard mobile form layout (single column). Fields: Município, Localidade, Categoria, Zona, Folha, Data, Atividade."
+    },
+    {
+      "name": "Form Entry - Visits List (20 fixed rows)",
+      "description": "The main data entry area for the 20 property visits.",
+      "layout": "Scrollable vertical list of 20 cards representing rows. Empty cards show 'Visita #'. Tapping a card opens a full-screen drawer/modal for that specific row.",
+      "row_entry_modal": {
+        "description": "Drawer or modal that contains the complex fields for a single visit.",
+        "fields": [
+          "Quarteirão", "Sequência", "Lado", "Logradouro", "Número", "Complemento", 
+          "Tipo do Imóvel (Residência, Comércio, Terreno Baldio, P.E, Outros)", 
+          "Hora Entrada", "Tipo da Visita", "Pendência", "Nº Depósitos Eliminados", 
+          "Imóvel c/foco", "Imóvel Tratado", "Tipo", "Quantidade", "Qtd Depósitos Tratados"
+        ]
+      }
+    },
+    {
+      "name": "Form Entry - Summary & Deposits",
+      "description": "Bottom section of the form with totals and deposit classifications.",
+      "layout": "Read-only summary cards aggregating data from the 20 visits. Form sections for A1, A2, B, C, D1, D2, E deposit counts. Signature text fields at the very bottom."
+    }
+  ],
+  "implementation_notes": {
+    "state_management": "Use a robust form state or local context to hold the 20 rows of data. Auto-save to localStorage/IndexedDB frequently to prevent data loss in the field.",
+    "export_functionality": "For CSV, generate a standard comma-separated string. For PDF, use a library like jspdf and jspdf-autotable to mimic the official D1 tabular layout.",
+    "mobile_optimizations": "Use type='number' for numeric fields to trigger the numpad on mobile. Use Shadcn's Select or native <select> styled cleanly for dropdowns (Tipo do Imóvel, Pendência)."
+  }
+}
