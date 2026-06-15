@@ -5,7 +5,7 @@ import { formsApi, catalogApi, trySync } from "@/lib/api";
 import { ATIVIDADES } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
 import { useOnline } from "@/hooks/useOnline";
-import { subscribeSyncState } from "@/lib/syncQueue";
+import { subscribeSyncState, getQueue, getLocalForms } from "@/lib/syncQueue";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -13,18 +13,38 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [catalogStats, setCatalogStats] = useState({ imoveis: 0, quarteiroes: 0 });
-  const [syncState, setSyncState] = useState({ queueSize: 0, localForms: {} });
+  const [syncState, setSyncState] = useState({
+    queueSize: getQueue().length,
+    localForms: getLocalForms(),
+  });
+  const [syncing, setSyncing] = useState(false);
   const online = useOnline();
 
   useEffect(() => {
+    // Re-leitura imediata + assina mudanças
+    setSyncState({ queueSize: getQueue().length, localForms: getLocalForms() });
     const unsub = subscribeSyncState(setSyncState);
-    return unsub;
+    // Reage também a mudanças no localStorage (outras abas/SW)
+    const onStorage = (e) => {
+      if (e.key === "pncd_sync_queue" || e.key === "pncd_local_forms") {
+        setSyncState({ queueSize: getQueue().length, localForms: getLocalForms() });
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      unsub();
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   // Refresh quando voltar online (sync rodou)
   useEffect(() => {
-    if (online) {
-      trySync().then(() => load());
+    if (online && getQueue().length > 0) {
+      setSyncing(true);
+      trySync().then(() => {
+        setSyncing(false);
+        load();
+      });
     }
   }, [online]);
 
@@ -97,12 +117,12 @@ const Dashboard = () => {
               <WifiOff className="w-3 h-3" /> Offline
             </span>
           )}
-          {syncState.queueSize > 0 && online && (
+          {syncing && (
             <span className="flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-1 rounded-md" data-testid="sync-pending">
               <CloudOff className="w-3 h-3" /> Sincronizando…
             </span>
           )}
-          {syncState.queueSize > 0 && !online && (
+          {!syncing && syncState.queueSize > 0 && (
             <span className="flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-1 rounded-md" data-testid="sync-queue">
               <CloudOff className="w-3 h-3" /> {syncState.queueSize} na fila
             </span>

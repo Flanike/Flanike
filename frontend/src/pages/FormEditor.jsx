@@ -169,29 +169,32 @@ const FormEditor = () => {
         try {
           localStorage.removeItem(draftKey);
         } catch {}
-        if (created?.id?.startsWith("local_")) {
-          setToast({ type: "info", msg: "Sem internet — salvo na fila local" });
-        } else {
-          setToast({ type: "ok", msg: "Formulário criado!" });
-        }
-        navigate(`/form/${created.id}`, { replace: true });
+        const queued = created?.id?.startsWith?.("local_");
+        // Define o toast ANTES de navegar
+        setToast(
+          queued
+            ? { type: "info", msg: "Sem internet — salvo na fila local" }
+            : { type: "ok", msg: "Formulário criado!" }
+        );
+        // pequeno delay para o toast renderizar antes da nav
+        setTimeout(() => navigate(`/form/${created.id}`, { replace: true }), 250);
       } else {
         const updated = await formsApi.update(id, form);
         try {
           localStorage.removeItem(draftKey);
         } catch {}
-        if (updated?._pending) {
-          setToast({ type: "info", msg: "Sem internet — alteração na fila" });
-        } else {
-          setToast({ type: "ok", msg: "Alterações salvas" });
-        }
+        setToast(
+          updated?._pending
+            ? { type: "info", msg: "Sem internet — alteração na fila" }
+            : { type: "ok", msg: "Alterações salvas" }
+        );
       }
     } catch (e) {
       console.error(e);
       setToast({ type: "error", msg: "Erro ao salvar — rascunho mantido localmente" });
     } finally {
       setSaving(false);
-      setTimeout(() => setToast(null), 2500);
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
