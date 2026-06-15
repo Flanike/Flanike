@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, MapPin, Building2, Home, Trees, Store, Landmark, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Search, MapPin, Building2, Home, Trees, Store, Landmark, CheckCircle2, Plus, Pencil } from "lucide-react";
 import { catalogApi } from "@/lib/api";
 import { imovelKey } from "@/constants/d1";
+import ImovelEditor from "@/components/ImovelEditor";
 
 const inputCls =
   "w-full border border-slate-300 rounded-lg px-3 py-2.5 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white";
@@ -25,6 +26,33 @@ const Catalogo = () => {
   const [search, setSearch] = useState("");
   const [visitedSet, setVisitedSet] = useState(new Set());
   const [filterVisited, setFilterVisited] = useState("all"); // all | visited | pending
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState("create"); // create | edit
+  const [editingImovel, setEditingImovel] = useState(null);
+
+  const reloadAll = () => {
+    Promise.all([
+      catalogApi.quarteiroes(),
+      catalogApi.visited().catch(() => ({ keys: [] })),
+    ]).then(([qs, v]) => {
+      setQuarteiroes(qs);
+      setVisitedSet(new Set(v.keys || []));
+    });
+    if (selectedQt) {
+      catalogApi.imoveis({ quarteirao: selectedQt }).then(setImoveis).catch(() => {});
+    }
+  };
+
+  const handleEdit = (im) => {
+    setEditorMode("edit");
+    setEditingImovel(im);
+    setEditorOpen(true);
+  };
+  const handleNew = () => {
+    setEditorMode("create");
+    setEditingImovel(null);
+    setEditorOpen(true);
+  };
 
   useEffect(() => {
     Promise.all([
@@ -160,9 +188,19 @@ const Catalogo = () => {
 
         {/* Picker */}
         <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50">
-            <h2 className="text-base font-semibold text-slate-900 font-display">Explorar por Quarteirão</h2>
-            <p className="text-xs text-slate-500 mt-0.5">{quarteiroes.length} quarteirões cadastrados</p>
+          <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-slate-900 font-display">Explorar por Quarteirão</h2>
+              <p className="text-xs text-slate-500 mt-0.5">{quarteiroes.length} quarteirões cadastrados</p>
+            </div>
+            <button
+              onClick={handleNew}
+              className="bg-blue-800 hover:bg-blue-900 text-white text-xs font-medium rounded-lg px-3 py-2 flex items-center gap-1.5 shrink-0"
+              data-testid="new-imovel-btn"
+            >
+              <Plus className="w-4 h-4" />
+              Novo
+            </button>
           </div>
           <div className="p-5 space-y-3">
             <select
@@ -271,6 +309,14 @@ const Catalogo = () => {
                               {visited && <span className="ml-2 text-green-700 font-medium">· Visitado</span>}
                             </p>
                           </div>
+                          <button
+                            onClick={() => handleEdit(im)}
+                            className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-blue-700 shrink-0"
+                            data-testid={`edit-imovel-${im.id}`}
+                            aria-label="Editar imóvel"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
                         </div>
                       );
                     })}
@@ -281,6 +327,16 @@ const Catalogo = () => {
           )}
         </section>
       </div>
+
+      <ImovelEditor
+        open={editorOpen}
+        mode={editorMode}
+        imovel={editingImovel}
+        defaultQuarteirao={selectedQt}
+        onClose={() => setEditorOpen(false)}
+        onSaved={() => reloadAll()}
+        onDeleted={() => reloadAll()}
+      />
     </div>
   );
 };

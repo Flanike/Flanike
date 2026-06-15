@@ -4,6 +4,7 @@ import Dashboard from "@/pages/Dashboard";
 import FormEditor from "@/pages/FormEditor";
 import Catalogo from "@/pages/Catalogo";
 import Resumo from "@/pages/Resumo";
+import Semanal from "@/pages/Semanal";
 import PrintD1 from "@/pages/PrintD1";
 import "@/lib/offlineBootstrap"; // dispara pré-cache agressivo na carga
 
@@ -16,6 +17,7 @@ function App() {
         <Route path="/form/:id" element={<FormEditor />} />
         <Route path="/catalogo" element={<Catalogo />} />
         <Route path="/resumo" element={<Resumo />} />
+        <Route path="/semanal" element={<Semanal />} />
         <Route path="/print/:id" element={<PrintD1 />} />
       </Routes>
     </BrowserRouter>

@@ -142,11 +142,19 @@ export const catalogApi = {
   countImoveis: (params = {}) =>
     api.get("/imoveis/count", { params }).then((r) => r.data),
   visited: () => api.get("/imoveis/visited").then((r) => r.data),
+  createImovel: (data) => api.post("/imoveis", data).then((r) => r.data),
+  updateImovel: (id, data) =>
+    api.put(`/imoveis/${id}`, data).then((r) => r.data),
+  deleteImovel: (id) => api.delete(`/imoveis/${id}`).then((r) => r.data),
   // Pré-cache: ao tocar essa URL, o service worker armazena a resposta no cache
   prefetchQuarteirao: (quarteirao) => {
     if (!quarteirao) return Promise.resolve();
     return api.get("/imoveis", { params: { quarteirao } }).catch(() => null);
   },
+};
+
+export const statsApi = {
+  weekly: () => api.get("/forms/stats/weekly").then((r) => r.data),
 };
 
 // Sync automático quando voltar a ficar online

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff, DownloadCloud, CheckCircle2 } from "lucide-react";
+import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff, DownloadCloud, CheckCircle2, BarChart3 } from "lucide-react";
 import { formsApi, catalogApi, trySync } from "@/lib/api";
 import { ATIVIDADES } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
@@ -199,19 +199,30 @@ const Dashboard = () => {
         </button>
       </div>
 
-      <div className="px-5 mt-3">
+      <div className="px-5 mt-3 grid grid-cols-2 gap-3">
         <button
           onClick={() => navigate("/resumo")}
-          className="w-full bg-gradient-to-br from-emerald-600 to-green-700 hover:from-emerald-700 hover:to-green-800 rounded-xl border border-green-800 p-4 shadow-sm text-left transition-colors flex items-center gap-3"
+          className="bg-gradient-to-br from-emerald-600 to-green-700 hover:from-emerald-700 hover:to-green-800 rounded-xl border border-green-800 p-4 shadow-sm text-left transition-colors"
           data-testid="open-resumo"
         >
-          <Target className="w-8 h-8 text-emerald-200 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-emerald-100 uppercase tracking-wider font-medium">Ciclo</p>
-            <p className="text-base font-semibold text-white font-display">Resumo do Ciclo</p>
-            <p className="text-xs text-emerald-100/80">Progresso por quarteirão</p>
+          <div className="flex items-start justify-between mb-2">
+            <Target className="w-6 h-6 text-emerald-200" />
           </div>
-          <span className="text-emerald-200 text-xs">›</span>
+          <p className="text-xs text-emerald-100 uppercase tracking-wider font-medium">Ciclo</p>
+          <p className="text-sm font-semibold text-white font-display leading-tight">Resumo do Ciclo</p>
+          <p className="text-[10px] text-emerald-100/80 mt-1">Por quarteirão</p>
+        </button>
+        <button
+          onClick={() => navigate("/semanal")}
+          className="bg-gradient-to-br from-indigo-600 to-blue-800 hover:from-indigo-700 hover:to-blue-900 rounded-xl border border-blue-900 p-4 shadow-sm text-left transition-colors"
+          data-testid="open-semanal"
+        >
+          <div className="flex items-start justify-between mb-2">
+            <BarChart3 className="w-6 h-6 text-indigo-200" />
+          </div>
+          <p className="text-xs text-indigo-100 uppercase tracking-wider font-medium">Semanal</p>
+          <p className="text-sm font-semibold text-white font-display leading-tight">Resumo Semanal</p>
+          <p className="text-[10px] text-indigo-100/80 mt-1">Estatísticas por semana</p>
         </button>
       </div>
 

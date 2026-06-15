@@ -1,0 +1,55 @@
+{
+  "summary": "Iteration 6 testing on mobile 420x900. Backend: 27/27 pytest pass (8 new tests in test_iter6.py + 19 prior regression). All new endpoints work as specified: POST/PUT/DELETE /api/imoveis, GET /api/forms/stats/weekly (ISO-8601, W03/2026 starts 2026-01-12; W25/2026 starts 2026-06-15). _refresh_quarteirao_totals correctly aggregates residencia/comercio/habitantes/cao/gato into the quarteiroes collection. Frontend: Dashboard 'open-semanal' card → /semanal renders weekly-hero (Acumulado 3 imóveis informados em 2 semanas, Focos=1), weekly-chart with week-bar-2026-W03 + week-bar-2026-W25, and detail table with week-total row. /catalogo shows new-imovel-btn; modal imovel-editor opens with all expected fields (ed-quarteirao, ed-lado, ed-logradouro, ed-numero, ed-seq, ed-tipo, ed-hab, ed-cao, ed-gato, ed-save) and title 'Novo imóvel'; ed-delete correctly absent in create mode. CRUD create flow PARTIALLY works: POST succeeds and quarteiroes totals refresh, BUT after creating with the UI the entire /api/imoveis endpoint returns 500 — CRITICAL BUG.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/imoveis (any filter)", "issue": "CRITICAL: list_imoveis sorts by int(d.get('lado','0') or 0) at server.py:326. The new ImovelEditor offers lado values 'P','I','U' (Par/Ímpar/Único). The instant any user saves an imóvel with one of those values, EVERY subsequent GET /api/imoveis (with or without filter) returns 500 ValueError: invalid literal for int() with base 10: 'P'. This breaks the entire Catálogo page, offline bootstrap (which fetches /imoveis), and prevents the newly-created imóvel from ever appearing in the UI. Reproduce: open /catalogo, click Novo, fill QT=88 + Lado=P + logradouro + tipo=R + hab=3, click Salvar; then curl /api/imoveis -> 500. Fix: either (a) change the sort key to be string-safe (e.g., int(d['lado']) if str(d['lado']).isdigit() else 999, then d['lado']); or (b) keep the editor consistent with the existing dataset of numeric lados (1/2/3...). Recommended: (a) — make sort robust.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "_refresh_quarteirao_totals", "issue": "When the last imóvel of a brand-new QT is deleted, the quarteiroes doc is left with all zeros (soma_imoveis=0) instead of being removed. This permanently pollutes GET /api/quarteiroes and breaks the strict 33-count regression. Suggestion: db.quarteiroes.delete_one({'quarteirao': qt}) when soma_imoveis becomes 0 AND there was no baseline (or always)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ImovelEditor lado field", "issue": "Lado dropdown values are 'P','I','U' (Par/Ímpar/Único), but the 988 seeded imoveis use numeric lado ('1','2',...) and the backend list-sort expects integers. This creates the CRITICAL 500 above. Either align the editor to numeric values like the spreadsheet, or use a free-text input.", "selector": "[data-testid='ed-lado']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Catálogo create-imovel", "issue": "After POST succeeds and modal closes, the imóvel does NOT appear in the QT list because the subsequent GET /api/imoveis crashes with 500 (root cause: lado='P' sort crash). User sees 'Nenhum imóvel...' even though /quarteiroes shows soma_imoveis=1.", "affected_selectors": ["[data-testid='catalog-imovel-{id}']", "[data-testid='edit-imovel-{id}']"]}
+    ],
+    "design_issues": [
+      {"screen": "/catalogo", "issues": ["Pre-existing hydration warning '<span> cannot be a child of <option>' on catalog-qt-select option labels. Unchanged from iter5."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter6.py",
+    "/app/backend/tests/test_d1_forms.py",
+    "/app/backend/tests/test_catalogo.py",
+    "/app/backend/tests/test_visited.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/pytest/pytest_iter6.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Fix list_imoveis sort in /app/backend/server.py:326 to handle non-numeric lado values without crashing. Example: docs.sort(key=lambda d: ((int(d.get('lado')) if str(d.get('lado','')).isdigit() else 9999), str(d.get('lado','')), d.get('logradouro',''), d.get('numero',''))).",
+    "CRITICAL: Decide canonical lado values across UI + dataset. Either change ImovelEditor.jsx ed-lado options to numeric ('1','2',...) matching the 988 seeded imoveis, OR migrate seeded data to P/I/U. Currently inconsistent.",
+    "MINOR: After delete, if a quarteirao ends with soma_imoveis=0 AND it was created by user (not in baseline 1..33), the quarteiroes doc should be removed so regression count remains 33.",
+    "MINOR: Hydration warning '<span> child of <option>' on catalog-qt-select still present (carry-over from iter5)."
+  ],
+  "critical_code_review_comments": [
+    "server.py:326 list_imoveis lambda assumes integer lado — breaks the entire endpoint if ImovelEditor writes a P/I/U value. This is the root cause of the iter6 UI integration failure.",
+    "server.py:386 — _refresh_quarteirao_totals only INSERTS if soma_imoveis>0 and never DELETES when it drops to 0, leaving orphan quarteiroes docs with all-zero counters.",
+    "server.py:394 stats_weekly endpoint duplicates work each call (no aggregation pipeline). For 5000-row scan ok; consider mongo aggregation if data grows.",
+    "Backend stats: 'informados' counter uses the same logic as visited keys ('logradouro or numero or tipo_imovel'), 'trabalhados' on tipo_visita-present, 'pendentes' = pendencia=='F', 'recuperados' = tipo_visita=='R'. Consistent with the planilha RESUMO mapping requested by the user.",
+    "stats_weekly correctly computes ISO 8601 week boundaries via jan4 anchor — verified W03/2026 starts 2026-01-12 (Mon) and W25/2026 starts 2026-06-15 (Mon).",
+    "ImovelEditor — ed-lado <select> options (P/I/U) are inconsistent with the dataset (numeric strings). Pick one and stick with it.",
+    "After POST/PUT/DELETE /api/imoveis, the frontend should invalidate any offline-bootstrap or in-memory cache of /api/imoveis & /api/imoveis?quarteirao=X — otherwise the newly-created imóvel may not show up immediately. (Not verified due to the 500 above blocking the test.)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter6.py (new — 8 tests covering imovel CRUD + weekly stats + regression)"
+  ],
+  "success_rate": {"backend": "100% on pytest API contract (27/27); however UI-triggered POST poisons GET /api/imoveis (500) — practical success 70% because the canonical write path produces unreadable data.", "frontend": "60% — Dashboard card OK, /semanal page OK (hero+chart+table), /catalogo modal opens with correct fields & create-mode chrome, but the end-to-end CREATE→EDIT→DELETE happy path fails on step 1 due to backend 500 (after the editor saves a non-numeric lado)."},
+  "test_credentials": "N/A (no auth in this app)",
+  "seed_data_creation": "Tests create transient TEST_-prefixed imoveis and TEST_STAT_-prefixed forms; all cleaned up in fixtures/teardown. Module-level fixture in test_iter6 also scrubs QT 99 leftovers from quarteiroes/imoveis collections after run.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After main agent fixes the int(lado) sort and aligns ed-lado values, re-run /app/backend/tests/test_iter6.py and re-test /catalogo CRUD via Playwright at 420x900: open /catalogo → click new-imovel-btn → fill QT=88 + Lado=(numeric like '1') + Logradouro='RUA TESTE UI' + Numero='999' + Tipo='R' + Hab=3 → ed-save → modal closes → catalog-qt-select shows option '88' → select it → catalog-imovel-{id} visible with edit-imovel-{id} button → edit hab to 5 → ed-save → re-open → ed-delete (auto-accept window.confirm) → list empty. Also verify GET /api/quarteiroes drops QT 88 after delete (currently broken — minor issue).",
+  "rca of the issue": "Root cause of the CRITICAL UI integration failure: list_imoveis at server.py:326 calls int(d.get('lado','0') or 0) in its sort key. The 988 seeded imoveis all have numeric string lados ('1','2','3'), so the sort works pre-iter6. The new ImovelEditor.jsx in iter6 introduces a select with only P/I/U values. The MOMENT a user saves an imóvel with lado='P' (or 'I'/'U'), the next GET /api/imoveis call attempts int('P') → ValueError → 500 → entire catalog page breaks, offline bootstrap fails, and the newly-saved imóvel never appears. Reproduction: 1) /catalogo → Novo; 2) QT=88, Lado=P, Logradouro=anything, Tipo=R, Salvar; 3) GET /api/imoveis returns 500; 4) curl confirms `Internal Server Error`. Mitigation applied during testing: deleted the poisoned doc + the orphan QT88 quarteiroes doc via direct mongo to unbreak the live preview. Permanent fix needed in code as described above."
+}

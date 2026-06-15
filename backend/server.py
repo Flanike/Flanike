@@ -104,13 +104,26 @@ class D1FormSummary(BaseModel):
 
 class Imovel(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    id: str
-    quarteirao: str
-    lado: str
-    logradouro: str
-    numero: str
-    seq: str
-    tipo_imovel: str
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    quarteirao: str = ""
+    lado: str = ""
+    logradouro: str = ""
+    numero: str = ""
+    seq: str = ""
+    tipo_imovel: str = ""
+    hab: int = 0
+    cao: int = 0
+    gato: int = 0
+
+
+class ImovelInput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    quarteirao: str = ""
+    lado: str = ""
+    logradouro: str = ""
+    numero: str = ""
+    seq: str = ""
+    tipo_imovel: str = ""
     hab: int = 0
     cao: int = 0
     gato: int = 0
@@ -312,6 +325,158 @@ async def list_imoveis(quarteirao: Optional[str] = None, lado: Optional[str] = N
     # ordena por lado e logradouro
     docs.sort(key=lambda d: (int(d.get("lado", "0") or 0), d.get("logradouro", ""), d.get("numero", "")))
     return [Imovel(**d) for d in docs]
+
+
+@api_router.post("/imoveis", response_model=Imovel)
+async def create_imovel(payload: ImovelInput):
+    imovel = Imovel(**payload.model_dump())
+    await db.imoveis.insert_one(imovel.model_dump())
+    # Atualiza contagem agregada do quarteirão correspondente, se existir
+    await _refresh_quarteirao_totals(imovel.quarteirao)
+    return imovel
+
+
+@api_router.put("/imoveis/{imovel_id}", response_model=Imovel)
+async def update_imovel(imovel_id: str, payload: ImovelInput):
+    existing = await db.imoveis.find_one({"id": imovel_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Imóvel não encontrado")
+    old_qt = existing.get("quarteirao", "")
+    data = payload.model_dump()
+    data["id"] = imovel_id
+    await db.imoveis.replace_one({"id": imovel_id}, data)
+    await _refresh_quarteirao_totals(old_qt)
+    if data.get("quarteirao") and data.get("quarteirao") != old_qt:
+        await _refresh_quarteirao_totals(data["quarteirao"])
+    return Imovel(**data)
+
+
+@api_router.delete("/imoveis/{imovel_id}")
+async def delete_imovel(imovel_id: str):
+    doc = await db.imoveis.find_one({"id": imovel_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Imóvel não encontrado")
+    await db.imoveis.delete_one({"id": imovel_id})
+    await _refresh_quarteirao_totals(doc.get("quarteirao", ""))
+    return {"ok": True}
+
+
+async def _refresh_quarteirao_totals(quarteirao: str):
+    """Recalcula somatórios da coleção 'quarteiroes' para um QT específico."""
+    if not quarteirao:
+        return
+    imoveis = await db.imoveis.find({"quarteirao": str(quarteirao)}, {"_id": 0}).to_list(5000)
+    totals = {
+        "residencia": sum(1 for i in imoveis if i.get("tipo_imovel") == "R"),
+        "comercio": sum(1 for i in imoveis if i.get("tipo_imovel") == "C"),
+        "outros": sum(1 for i in imoveis if i.get("tipo_imovel") == "O"),
+        "terreno_baldio": sum(1 for i in imoveis if i.get("tipo_imovel") == "TB"),
+        "soma_imoveis": len(imoveis),
+        "soma_predios": sum(1 for i in imoveis if i.get("tipo_imovel") in {"R", "C", "O"}),
+        "habitantes": sum(int(i.get("hab") or 0) for i in imoveis),
+        "cao": sum(int(i.get("cao") or 0) for i in imoveis),
+        "gato": sum(int(i.get("gato") or 0) for i in imoveis),
+    }
+    existing = await db.quarteiroes.find_one({"quarteirao": str(quarteirao)}, {"_id": 0})
+    if existing:
+        await db.quarteiroes.update_one(
+            {"quarteirao": str(quarteirao)},
+            {"$set": totals},
+        )
+    elif totals["soma_imoveis"] > 0:
+        await db.quarteiroes.insert_one(
+            {"id": str(uuid.uuid4()), "quarteirao": str(quarteirao), **totals}
+        )
+
+
+# ===== Estatística semanal =====
+
+@api_router.get("/forms/stats/weekly")
+async def stats_weekly():
+    """Resumo semanal dos formulários (similar à aba RESUMO da planilha)."""
+    forms = await db.d1_forms.find({}, {"_id": 0}).to_list(5000)
+
+    weeks: dict = {}
+
+    def week_key(date_str: str):
+        if not date_str:
+            return None
+        try:
+            d = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return None
+        iso_year, iso_week, _ = d.isocalendar()
+        return f"{iso_year}-W{iso_week:02d}", d
+
+    for f in forms:
+        wk = week_key(f.get("data_atividade", ""))
+        if not wk:
+            continue
+        key, ref_date = wk
+        if key not in weeks:
+            # calcula data início (segunda-feira) e fim (domingo) da semana ISO
+            from datetime import timedelta
+            iso_year, iso_week, _ = ref_date.isocalendar()
+            jan4 = datetime(iso_year, 1, 4).date()
+            week1_start = jan4 - timedelta(days=jan4.isocalendar()[2] - 1)
+            start = week1_start + timedelta(weeks=iso_week - 1)
+            end = start + timedelta(days=6)
+            weeks[key] = {
+                "week": key,
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "formularios": 0,
+                "informados": 0,
+                "trabalhados": 0,
+                "pendentes": 0,
+                "recuperados": 0,
+                "focos": 0,
+                "tratados": 0,
+                "quarteiroes": set(),
+            }
+
+        w = weeks[key]
+        w["formularios"] += 1
+        for v in (f.get("visits") or []):
+            filled = bool((v.get("logradouro") or "").strip() or (v.get("numero") or "") or (v.get("tipo_imovel") or "").strip())
+            if not filled:
+                continue
+            w["informados"] += 1
+            # Trabalhados = visita com tipo_visita preenchido
+            if (v.get("tipo_visita") or "").strip():
+                w["trabalhados"] += 1
+            # Pendentes = pendencia "F" (Fechada)
+            if (v.get("pendencia") or "").strip() == "F":
+                w["pendentes"] += 1
+            # Recuperados = tipo_visita "R"
+            if (v.get("tipo_visita") or "").strip() == "R":
+                w["recuperados"] += 1
+            if v.get("imovel_com_foco"):
+                w["focos"] += 1
+            if v.get("imovel_tratado"):
+                w["tratados"] += 1
+            qt = (v.get("quarteirao") or "").strip()
+            if qt:
+                w["quarteiroes"].add(qt)
+
+    result = []
+    for k in sorted(weeks.keys()):
+        w = weeks[k]
+        w["quarteiroes_count"] = len(w["quarteiroes"])
+        w["quarteiroes"] = sorted(w["quarteiroes"], key=lambda x: int(x) if x.isdigit() else 0)
+        result.append(w)
+
+    # Totais agregados
+    total = {
+        "formularios": sum(w["formularios"] for w in result),
+        "informados": sum(w["informados"] for w in result),
+        "trabalhados": sum(w["trabalhados"] for w in result),
+        "pendentes": sum(w["pendentes"] for w in result),
+        "recuperados": sum(w["recuperados"] for w in result),
+        "focos": sum(w["focos"] for w in result),
+        "tratados": sum(w["tratados"] for w in result),
+    }
+    return {"weeks": result, "total": total}
 
 
 app.include_router(api_router)
