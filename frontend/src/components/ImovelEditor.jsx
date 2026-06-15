@@ -106,7 +106,7 @@ const ImovelEditor = ({ open, mode, imovel, defaultQuarteirao, onClose, onSaved,
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Quarteirão *">
-              <input className={inputCls} value={form.quarteirao} onChange={(e) => set("quarteirao", e.target.value)} placeholder="1" data-testid="ed-quarteirao" />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" className={inputCls} value={form.quarteirao} onChange={(e) => set("quarteirao", e.target.value.replace(/[^0-9]/g, ""))} placeholder="1" data-testid="ed-quarteirao" />
             </Field>
             <Field label="Lado">
               <select
@@ -126,10 +126,10 @@ const ImovelEditor = ({ open, mode, imovel, defaultQuarteirao, onClose, onSaved,
 
           <div className="grid grid-cols-3 gap-3">
             <Field label="Número">
-              <input className={inputCls} value={form.numero} onChange={(e) => set("numero", e.target.value)} data-testid="ed-numero" />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" className={inputCls} value={form.numero} onChange={(e) => set("numero", e.target.value.replace(/[^0-9]/g, ""))} data-testid="ed-numero" />
             </Field>
             <Field label="Seq.">
-              <input className={inputCls} value={form.seq} onChange={(e) => set("seq", e.target.value)} data-testid="ed-seq" />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" className={inputCls} value={form.seq} onChange={(e) => set("seq", e.target.value.replace(/[^0-9]/g, ""))} data-testid="ed-seq" />
             </Field>
             <Field label="Tipo">
               <select className={inputCls} value={form.tipo_imovel} onChange={(e) => set("tipo_imovel", e.target.value)} data-testid="ed-tipo">

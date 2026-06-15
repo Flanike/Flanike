@@ -64,10 +64,10 @@ const VisitModal = ({ open, index, visit, onChange, onClose }) => {
 
           <div className="grid grid-cols-3 gap-3">
             <Field label="Quart.">
-              <input className={inputCls} value={visit.quarteirao} onChange={(e) => set("quarteirao", e.target.value)} data-testid="visit-quarteirao" />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" className={inputCls} value={visit.quarteirao} onChange={(e) => set("quarteirao", e.target.value.replace(/[^0-9]/g, ""))} data-testid="visit-quarteirao" />
             </Field>
             <Field label="Seq.">
-              <input className={inputCls} value={visit.sequencia} onChange={(e) => set("sequencia", e.target.value)} data-testid="visit-sequencia" />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" className={inputCls} value={visit.sequencia} onChange={(e) => set("sequencia", e.target.value.replace(/[^0-9]/g, ""))} data-testid="visit-sequencia" />
             </Field>
             <Field label="Lado">
               <select className={inputCls} value={visit.lado} onChange={(e) => set("lado", e.target.value)} data-testid="visit-lado">
@@ -82,10 +82,10 @@ const VisitModal = ({ open, index, visit, onChange, onClose }) => {
 
           <div className="grid grid-cols-3 gap-3">
             <Field label="Número">
-              <input className={inputCls} value={visit.numero} onChange={(e) => set("numero", e.target.value)} data-testid="visit-numero" />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" className={inputCls} value={visit.numero} onChange={(e) => set("numero", e.target.value.replace(/[^0-9]/g, ""))} data-testid="visit-numero" />
             </Field>
             <Field label="Sequência">
-              <input className={inputCls} value={visit.seq_numero} onChange={(e) => set("seq_numero", e.target.value)} data-testid="visit-seq-numero" />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" className={inputCls} value={visit.seq_numero} onChange={(e) => set("seq_numero", e.target.value.replace(/[^0-9]/g, ""))} data-testid="visit-seq-numero" />
             </Field>
             <Field label="Complemento">
               <input className={inputCls} value={visit.complemento} onChange={(e) => set("complemento", e.target.value)} placeholder="Apto 12" data-testid="visit-complemento" />

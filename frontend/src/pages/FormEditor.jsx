@@ -319,7 +319,7 @@ const FormEditor = () => {
               />
             </Field>
             <Field label="Zona">
-              <input className={inputCls} value={form.zona} onChange={(e) => set("zona", e.target.value)} placeholder="14" data-testid="input-zona" />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" className={inputCls} value={form.zona} onChange={(e) => set("zona", e.target.value.replace(/[^0-9]/g, ""))} placeholder="14" data-testid="input-zona" />
             </Field>
             <Field label="Tipo" hint="Fixo">
               <input
@@ -331,8 +331,42 @@ const FormEditor = () => {
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Folha">
-              <input className={inputCls} value={form.folha} onChange={(e) => set("folha", e.target.value)} placeholder="1/1" data-testid="input-folha" />
+            <Field label="Folha" hint="Atual / total">
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={3}
+                  className={`${inputCls} text-center`}
+                  value={(form.folha || "").split("/")[0] || ""}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, "");
+                    const total = (form.folha || "").split("/")[1] || "";
+                    set("folha", total ? `${val}/${total}` : val);
+                  }}
+                  placeholder="1"
+                  data-testid="input-folha-atual"
+                  aria-label="Folha atual"
+                />
+                <span className="text-xl font-semibold text-slate-400 select-none">/</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={3}
+                  className={`${inputCls} text-center`}
+                  value={(form.folha || "").split("/")[1] || ""}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, "");
+                    const atual = (form.folha || "").split("/")[0] || "";
+                    set("folha", val ? `${atual}/${val}` : atual);
+                  }}
+                  placeholder="1"
+                  data-testid="input-folha-total"
+                  aria-label="Total de folhas"
+                />
+              </div>
             </Field>
             <Field label="Data da Atividade">
               <input type="date" className={inputCls} value={form.data_atividade} onChange={(e) => set("data_atividade", e.target.value)} data-testid="input-data" />
@@ -346,10 +380,10 @@ const FormEditor = () => {
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Quart. trabalhados" hint="Nº e sequência">
-              <input className={inputCls} value={form.quarteiroes_trabalhados} onChange={(e) => set("quarteiroes_trabalhados", e.target.value)} data-testid="input-quart-trab" />
+              <input type="text" inputMode="numeric" pattern="[0-9,\s/-]*" className={inputCls} value={form.quarteiroes_trabalhados} onChange={(e) => set("quarteiroes_trabalhados", e.target.value)} data-testid="input-quart-trab" />
             </Field>
             <Field label="Quart. concluídos">
-              <input className={inputCls} value={form.quarteiroes_concluidos} onChange={(e) => set("quarteiroes_concluidos", e.target.value)} data-testid="input-quart-conc" />
+              <input type="text" inputMode="numeric" pattern="[0-9,\s/-]*" className={inputCls} value={form.quarteiroes_concluidos} onChange={(e) => set("quarteiroes_concluidos", e.target.value)} data-testid="input-quart-conc" />
             </Field>
           </div>
         </SectionCard>
