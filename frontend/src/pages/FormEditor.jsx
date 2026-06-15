@@ -44,6 +44,7 @@ const FormEditor = () => {
   const [exportOpen, setExportOpen] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [nextSibling, setNextSibling] = useState(null);
+  const [batchSiblings, setBatchSiblings] = useState([]);
   const online = useOnline();
   const draftKey = isNew ? "pncd_d1_draft_new" : `pncd_d1_draft_${id}`;
 
@@ -164,23 +165,40 @@ const FormEditor = () => {
   useEffect(() => {
     if (isNew || !form.folha) {
       setNextSibling(null);
+      setBatchSiblings([]);
       return;
     }
     const [a, t] = form.folha.split("/").map((s) => parseInt(s, 10));
-    if (Number.isNaN(a)) return;
-    const targetA = a + 1;
-    if (Number.isNaN(t) || targetA > t) {
+    if (Number.isNaN(a) || Number.isNaN(t) || t < 2) {
       setNextSibling(null);
+      setBatchSiblings([]);
       return;
     }
-    const targetFolha = `${targetA}/${t}`;
+    const targetA = a + 1;
+    const targetFolha = targetA <= t ? `${targetA}/${t}` : null;
     formsApi
       .list()
       .then((list) => {
-        const match = list.find((f) => f.folha === targetFolha && f.id !== id);
+        // Irmãos = mesmo /total e mesmo localidade (heurística)
+        const siblings = list
+          .filter((f) => {
+            if (!f.folha) return false;
+            const parts = f.folha.split("/").map((s) => parseInt(s, 10));
+            return parts[1] === t;
+          })
+          .sort((x, y) => {
+            const ax = parseInt((x.folha || "").split("/")[0], 10) || 0;
+            const ay = parseInt((y.folha || "").split("/")[0], 10) || 0;
+            return ax - ay;
+          });
+        setBatchSiblings(siblings);
+        const match = targetFolha ? siblings.find((f) => f.folha === targetFolha && f.id !== id) : null;
         setNextSibling(match || null);
       })
-      .catch(() => setNextSibling(null));
+      .catch(() => {
+        setNextSibling(null);
+        setBatchSiblings([]);
+      });
   }, [id, isNew, form.folha]);
 
   // Autosave do rascunho em localStorage (proteção contra perda de dados em campo)
@@ -323,6 +341,38 @@ const FormEditor = () => {
           </div>
         )}
       </header>
+
+      {/* Batch indicator: pontos navegáveis das folhas do mesmo lote */}
+      {batchSiblings.length >= 2 && (
+        <div className="sticky top-[57px] z-20 bg-gradient-to-r from-slate-50 to-blue-50/60 border-b border-slate-200 px-4 py-2.5 flex items-center gap-2.5 overflow-x-auto" data-testid="batch-indicator">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
+            Lote · Folha {form.folha}
+          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {batchSiblings.map((s) => {
+              const isCurrent = s.id === id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    if (isCurrent) return;
+                    navigate(`/form/${s.id}`);
+                  }}
+                  className={`min-w-[36px] h-7 px-2 rounded-md text-[11px] font-semibold transition-colors ${
+                    isCurrent
+                      ? "bg-blue-800 text-white shadow-sm"
+                      : "bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:border-blue-300"
+                  }`}
+                  data-testid={`batch-dot-${s.folha}`}
+                  title={`Folha ${s.folha}`}
+                >
+                  {s.folha}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="p-4 space-y-5">
         {/* Header info */}

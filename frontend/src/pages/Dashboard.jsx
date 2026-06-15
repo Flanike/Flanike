@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff, DownloadCloud, CheckCircle2, BarChart3, Copy, Eraser, AlertTriangle, CalendarClock, Bug, DoorClosed, Layers, X } from "lucide-react";
 import { formsApi, catalogApi, trySync } from "@/lib/api";
 import { ATIVIDADES, imovelKey } from "@/constants/d1";
+import { NicolasKelpLogo, NicolasKelpWordmark } from "@/components/NicolasKelpLogo";
 import { exportCSV, exportPDF } from "@/lib/export";
 import { useOnline } from "@/hooks/useOnline";
 import { subscribeSyncState, getQueue, getLocalForms } from "@/lib/syncQueue";
@@ -142,15 +143,8 @@ const Dashboard = () => {
       <header className="px-5 pt-8 pb-6 bg-white border-b border-slate-200">
         <div className="flex items-start justify-between gap-3 mb-1">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-800 flex items-center justify-center">
-              <ClipboardList className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="section-title">PNCD</p>
-              <h1 className="text-2xl font-semibold text-slate-900 leading-tight font-display">
-                Resumo Diário D1
-              </h1>
-            </div>
+            <NicolasKelpLogo size={48} />
+            <NicolasKelpWordmark />
           </div>
           {!online && (
             <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md" data-testid="offline-badge">
