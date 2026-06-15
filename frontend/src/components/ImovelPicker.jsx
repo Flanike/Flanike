@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
-import { X, Search, MapPin } from "lucide-react";
+import { X, Search, MapPin, CheckCircle2 } from "lucide-react";
 import { catalogApi } from "@/lib/api";
+import { imovelKey } from "@/constants/d1";
 
 const inputCls =
   "w-full border border-slate-300 rounded-lg px-3 py-2.5 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white";
@@ -19,10 +20,15 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
   const [imoveis, setImoveis] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [visitedSet, setVisitedSet] = useState(new Set());
 
   useEffect(() => {
     if (!open) return;
     catalogApi.quarteiroes().then(setQuarteiroes).catch(() => setQuarteiroes([]));
+    catalogApi
+      .visited()
+      .then((v) => setVisitedSet(new Set(v.keys || [])))
+      .catch(() => setVisitedSet(new Set()));
   }, [open]);
 
   useEffect(() => {
@@ -131,33 +137,40 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
                     Lado {lado}
                   </p>
                   <div className="divide-y divide-slate-100">
-                    {byLado[lado].map((im) => (
-                      <button
-                        key={im.id}
-                        onClick={() => onPick(im)}
-                        className="w-full text-left px-5 py-3 hover:bg-blue-50 active:bg-blue-100 flex items-center gap-3 transition-colors"
-                        data-testid={`pick-imovel-${im.id}`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">
-                            {im.logradouro || "—"}
-                            {im.numero ? `, ${im.numero}` : ""}
-                            {im.seq ? ` (seq ${im.seq})` : ""}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {im.hab > 0 && `${im.hab} hab.`}
-                            {im.cao > 0 && ` · ${im.cao} cão`}
-                            {im.gato > 0 && ` · ${im.gato} gato`}
-                            {!im.hab && !im.cao && !im.gato && "Sem moradores cadastrados"}
-                          </p>
-                        </div>
-                        {im.tipo_imovel && (
-                          <span className={`text-[11px] font-semibold px-2 py-1 rounded-md border ${tipoBadge[im.tipo_imovel] || "bg-slate-100 text-slate-600 border-slate-300"}`}>
-                            {im.tipo_imovel}
-                          </span>
-                        )}
-                      </button>
-                    ))}
+                    {byLado[lado].map((im) => {
+                      const visited = visitedSet.has(imovelKey(im));
+                      return (
+                        <button
+                          key={im.id}
+                          onClick={() => onPick(im)}
+                          className={`w-full text-left px-5 py-3 hover:bg-blue-50 active:bg-blue-100 flex items-center gap-3 transition-colors ${visited ? "bg-green-50/30" : ""}`}
+                          data-testid={`pick-imovel-${im.id}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-medium text-slate-900 truncate">
+                                {im.logradouro || "—"}
+                                {im.numero ? `, ${im.numero}` : ""}
+                                {im.seq ? ` (seq ${im.seq})` : ""}
+                              </p>
+                              {visited && <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />}
+                            </div>
+                            <p className="text-xs text-slate-500">
+                              {im.hab > 0 && `${im.hab} hab.`}
+                              {im.cao > 0 && ` · ${im.cao} cão`}
+                              {im.gato > 0 && ` · ${im.gato} gato`}
+                              {!im.hab && !im.cao && !im.gato && "Sem moradores cadastrados"}
+                              {visited && <span className="ml-2 text-green-700 font-medium">· Visitado</span>}
+                            </p>
+                          </div>
+                          {im.tipo_imovel && (
+                            <span className={`text-[11px] font-semibold px-2 py-1 rounded-md border ${tipoBadge[im.tipo_imovel] || "bg-slate-100 text-slate-600 border-slate-300"}`}>
+                              {im.tipo_imovel}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               ))

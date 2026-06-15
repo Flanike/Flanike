@@ -1,4 +1,4 @@
-import { CLASSIFICACAO_DEPOSITOS, TIPOS_IMOVEL, ATIVIDADES, visitIsFilled } from "@/constants/d1";
+import { TIPOS_IMOVEL, ATIVIDADES, visitIsFilled } from "@/constants/d1";
 
 const safe = (v) => (v === null || v === undefined ? "" : String(v));
 
@@ -46,13 +46,6 @@ export const exportCSV = (form) => {
   const totalImov = form.visits.filter(visitIsFilled).length;
   lines.push(["Total imóveis", totalImov].join(","));
   lines.push("");
-
-  lines.push("Classificação de Depósitos Eliminados,");
-  CLASSIFICACAO_DEPOSITOS.forEach((d) => {
-    lines.push([d.label, form.depositos_eliminados[d.key] || 0].join(","));
-  });
-  lines.push("");
-
   lines.push(["Casas Fechadas", form.casas_fechadas].join(","));
   lines.push(["Recuperadas", form.recuperadas].join(","));
   lines.push(["Informados", form.informados].join(","));
@@ -142,17 +135,6 @@ export const exportPDF = async (form) => {
     headStyles: { fillColor: [30, 64, 175], textColor: 255 },
     margin: { left: 8, right: 8 },
     tableWidth: 90,
-  });
-
-  // Deposits
-  const deps = CLASSIFICACAO_DEPOSITOS.map((d) => [d.label, form.depositos_eliminados[d.key] || 0]);
-  autoTable(doc, {
-    head: [["Classificação de Depósitos Eliminados", "Qtde"]],
-    body: deps,
-    theme: "striped",
-    styles: { fontSize: 7 },
-    headStyles: { fillColor: [30, 64, 175], textColor: 255 },
-    margin: { left: 8, right: 8 },
   });
 
   // Footer

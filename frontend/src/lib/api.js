@@ -56,4 +56,5 @@ export const catalogApi = {
     api.get("/imoveis", { params }).then((r) => r.data),
   countImoveis: (params = {}) =>
     api.get("/imoveis/count", { params }).then((r) => r.data),
+  visited: () => api.get("/imoveis/visited").then((r) => r.data),
 };

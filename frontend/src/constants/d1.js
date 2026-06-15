@@ -101,3 +101,7 @@ export const visitIsFilled = (v) =>
 
 export const countTipo = (visits, tipo) =>
   visits.filter((v) => v.tipo_imovel === tipo).length;
+
+// Chave canônica para casar imóvel do catálogo com visita registrada
+export const imovelKey = (im) =>
+  `${(im?.quarteirao || "").trim()}|${(im?.logradouro || "").trim().toLowerCase()}|${String(im?.numero ?? "").trim().toLowerCase()}`;

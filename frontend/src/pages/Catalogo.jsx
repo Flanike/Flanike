@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, MapPin, Building2, Home, Trees, Store, Landmark } from "lucide-react";
+import { ArrowLeft, Search, MapPin, Building2, Home, Trees, Store, Landmark, CheckCircle2 } from "lucide-react";
 import { catalogApi } from "@/lib/api";
+import { imovelKey } from "@/constants/d1";
 
 const inputCls =
   "w-full border border-slate-300 rounded-lg px-3 py-2.5 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white";
@@ -22,12 +23,19 @@ const Catalogo = () => {
   const [imoveis, setImoveis] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [visitedSet, setVisitedSet] = useState(new Set());
+  const [filterVisited, setFilterVisited] = useState("all"); // all | visited | pending
 
   useEffect(() => {
-    Promise.all([catalogApi.localidade(), catalogApi.quarteiroes()])
-      .then(([l, qs]) => {
+    Promise.all([
+      catalogApi.localidade(),
+      catalogApi.quarteiroes(),
+      catalogApi.visited().catch(() => ({ keys: [] })),
+    ])
+      .then(([l, qs, v]) => {
         setLoc(l);
         setQuarteiroes(qs);
+        setVisitedSet(new Set(v.keys || []));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -42,14 +50,26 @@ const Catalogo = () => {
   }, [selectedQt]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return imoveis;
+    let arr = imoveis;
+    if (filterVisited === "visited")
+      arr = arr.filter((i) => visitedSet.has(imovelKey(i)));
+    else if (filterVisited === "pending")
+      arr = arr.filter((i) => !visitedSet.has(imovelKey(i)));
+    if (!search.trim()) return arr;
     const s = search.toLowerCase();
-    return imoveis.filter(
+    return arr.filter(
       (i) =>
         i.logradouro.toLowerCase().includes(s) ||
         String(i.numero).toLowerCase().includes(s)
     );
-  }, [imoveis, search]);
+  }, [imoveis, search, visitedSet, filterVisited]);
+
+  const qtStats = useMemo(() => {
+    if (!selectedQt) return null;
+    const total = imoveis.length;
+    const visitados = imoveis.filter((i) => visitedSet.has(imovelKey(i))).length;
+    return { total, visitados, pendentes: total - visitados };
+  }, [imoveis, visitedSet, selectedQt]);
 
   const stats = useMemo(() => {
     const total = quarteiroes.reduce(
@@ -159,16 +179,54 @@ const Catalogo = () => {
               ))}
             </select>
             {selectedQt && (
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  className={`${inputCls} pl-10`}
-                  placeholder="Buscar logradouro ou número…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  data-testid="catalog-search"
-                />
-              </div>
+              <>
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    className={`${inputCls} pl-10`}
+                    placeholder="Buscar logradouro ou número…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    data-testid="catalog-search"
+                  />
+                </div>
+                {qtStats && (
+                  <div className="grid grid-cols-3 gap-2 text-center" data-testid="qt-stats">
+                    <div className="bg-slate-50 rounded-lg p-2 border border-slate-200">
+                      <p className="text-[10px] uppercase tracking-wider text-slate-500">Total</p>
+                      <p className="text-lg font-semibold text-slate-900 font-display">{qtStats.total}</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-2 border border-green-200">
+                      <p className="text-[10px] uppercase tracking-wider text-green-700">Visitados</p>
+                      <p className="text-lg font-semibold text-green-800 font-display">{qtStats.visitados}</p>
+                    </div>
+                    <div className="bg-amber-50 rounded-lg p-2 border border-amber-200">
+                      <p className="text-[10px] uppercase tracking-wider text-amber-700">Pendentes</p>
+                      <p className="text-lg font-semibold text-amber-800 font-display">{qtStats.pendentes}</p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+                  {[
+                    { key: "all", label: "Todos" },
+                    { key: "visited", label: "Visitados" },
+                    { key: "pending", label: "Pendentes" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setFilterVisited(opt.key)}
+                      className={`flex-1 text-xs font-medium py-2 rounded-md transition-colors ${
+                        filterVisited === opt.key
+                          ? "bg-white text-blue-800 shadow-sm"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                      data-testid={`filter-${opt.key}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
 
@@ -185,21 +243,32 @@ const Catalogo = () => {
                     {byLado[lado].map((im) => {
                       const meta = tipoMeta[im.tipo_imovel] || tipoMeta.O;
                       const Icon = meta.icon;
+                      const visited = visitedSet.has(imovelKey(im));
                       return (
-                        <div key={im.id} className="px-5 py-3 border-b border-slate-50 last:border-0 flex items-center gap-3" data-testid={`catalog-imovel-${im.id}`}>
+                        <div
+                          key={im.id}
+                          className={`px-5 py-3 border-b border-slate-50 last:border-0 flex items-center gap-3 ${visited ? "bg-green-50/40" : ""}`}
+                          data-testid={`catalog-imovel-${im.id}`}
+                        >
                           <div className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${meta.color}`}>
                             <Icon className="w-4 h-4" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">
-                              {im.logradouro || "—"}{im.numero ? `, ${im.numero}` : ""}{im.seq ? ` (${im.seq})` : ""}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-medium text-slate-900 truncate">
+                                {im.logradouro || "—"}{im.numero ? `, ${im.numero}` : ""}{im.seq ? ` (${im.seq})` : ""}
+                              </p>
+                              {visited && (
+                                <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" data-testid={`visited-${im.id}`} />
+                              )}
+                            </div>
                             <p className="text-xs text-slate-500">
                               {meta.label}
                               {(im.hab || im.cao || im.gato) ? " · " : ""}
                               {im.hab > 0 && `${im.hab} hab.`}
                               {im.cao > 0 && ` · 🐶 ${im.cao}`}
                               {im.gato > 0 && ` · 🐱 ${im.gato}`}
+                              {visited && <span className="ml-2 text-green-700 font-medium">· Visitado</span>}
                             </p>
                           </div>
                         </div>

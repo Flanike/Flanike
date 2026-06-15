@@ -265,6 +265,22 @@ async def list_quarteiroes():
     return [Quarteirao(**d) for d in docs]
 
 
+@api_router.get("/imoveis/visited")
+async def list_visited_keys():
+    """Retorna conjunto de chaves quarteirao|logradouro|numero que já foram visitadas
+    em algum formulário salvo. Útil para marcar imóveis no catálogo."""
+    forms = await db.d1_forms.find({}, {"_id": 0, "visits": 1}).to_list(5000)
+    keys = set()
+    for f in forms:
+        for v in (f.get("visits") or []):
+            qt = (v.get("quarteirao") or "").strip()
+            log = (v.get("logradouro") or "").strip().lower()
+            num = str(v.get("numero") or "").strip().lower()
+            if log or num:
+                keys.add(f"{qt}|{log}|{num}")
+    return {"keys": sorted(keys), "count": len(keys)}
+
+
 @api_router.get("/imoveis/count")
 async def count_imoveis(quarteirao: Optional[str] = None):
     query: dict = {}

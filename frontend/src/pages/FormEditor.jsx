@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, ChevronRight, CheckCircle2, Circle, Download } from "lucide-react";
+import { ArrowLeft, Save, ChevronRight, CheckCircle2, Circle, Download, WifiOff } from "lucide-react";
 import { formsApi, catalogApi } from "@/lib/api";
-import { ATIVIDADES, TIPOS_IMOVEL, CLASSIFICACAO_DEPOSITOS, LARVICIDAS, emptyForm, visitIsFilled } from "@/constants/d1";
+import { ATIVIDADES, TIPOS_IMOVEL, LARVICIDAS, emptyForm, visitIsFilled } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
 import VisitModal from "@/components/VisitModal";
+import { useOnline } from "@/hooks/useOnline";
 
 const inputCls =
   "w-full border border-slate-300 rounded-lg px-3 py-2.5 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder-slate-400";
@@ -38,14 +39,35 @@ const FormEditor = () => {
   const [visitOpenIdx, setVisitOpenIdx] = useState(null);
   const [toast, setToast] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const online = useOnline();
+  const draftKey = isNew ? "pncd_d1_draft_new" : `pncd_d1_draft_${id}`;
 
   useEffect(() => {
+    // Tenta recuperar rascunho local
+    let draft = null;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) draft = JSON.parse(raw);
+    } catch {
+      draft = null;
+    }
+
     if (isNew) {
-      // Pré-preenche município/localidade/zona a partir da localidade cadastrada
+      if (draft) {
+        setForm({ ...emptyForm(), ...draft });
+        setDraftLoaded(true);
+        setToast({ type: "info", msg: "Rascunho local restaurado" });
+        setTimeout(() => setToast(null), 2500);
+        // ainda assim, tenta carregar localidade para preencher campos vazios
+      }
       catalogApi
         .localidade()
         .then((loc) => {
-          if (!loc) return;
+          if (!loc) {
+            setDraftLoaded(true);
+            return;
+          }
           setForm((f) => ({
             ...f,
             municipio:
@@ -60,34 +82,60 @@ const FormEditor = () => {
                 : loc.localidade_nome || ""),
             zona: f.zona || loc.zona || "",
           }));
+          setDraftLoaded(true);
         })
-        .catch(() => {});
+        .catch(() => setDraftLoaded(true));
       return;
     }
+
     (async () => {
       try {
         const data = await formsApi.get(id);
         const visits = [...(data.visits || [])];
         while (visits.length < 20) visits.push({});
-        setForm({ ...emptyForm(), ...data, visits: visits.slice(0, 20) });
+        // Se existe rascunho mais novo que o servidor, prioriza-o
+        const serverDate = data.updated_at ? new Date(data.updated_at).getTime() : 0;
+        const draftDate = draft && draft._draft_at ? draft._draft_at : 0;
+        if (draft && draftDate > serverDate) {
+          setForm({ ...emptyForm(), ...draft });
+          setToast({ type: "info", msg: "Rascunho local restaurado (mais recente)" });
+          setTimeout(() => setToast(null), 2500);
+        } else {
+          setForm({ ...emptyForm(), ...data, visits: visits.slice(0, 20) });
+        }
       } catch (e) {
         console.error(e);
-        setToast({ type: "error", msg: "Erro ao carregar formulário" });
+        if (draft) {
+          setForm({ ...emptyForm(), ...draft });
+          setToast({ type: "info", msg: "Sem rede — usando rascunho local" });
+          setTimeout(() => setToast(null), 2500);
+        } else {
+          setToast({ type: "error", msg: "Erro ao carregar formulário" });
+        }
       } finally {
         setLoading(false);
+        setDraftLoaded(true);
       }
     })();
-  }, [id, isNew]);
+  }, [id, isNew, draftKey]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-  const setDep = (k, val) =>
-    setForm((f) => ({ ...f, depositos_eliminados: { ...f.depositos_eliminados, [k]: val } }));
   const setVisit = (idx, newVisit) =>
     setForm((f) => {
       const visits = [...f.visits];
       visits[idx] = newVisit;
       return { ...f, visits };
     });
+
+  // Autosave do rascunho em localStorage (proteção contra perda de dados em campo)
+  useEffect(() => {
+    if (!draftLoaded) return;
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({ ...form, _draft_at: Date.now() }));
+    } catch {
+      /* storage cheio — ignora */
+    }
+  }, [form, draftKey, draftLoaded]);
 
   const totals = useMemo(() => {
     const t = { R: 0, C: 0, TB: 0, PE: 0, O: 0 };
@@ -102,19 +150,31 @@ const FormEditor = () => {
   }, [form.visits]);
 
   const handleSave = async () => {
+    if (!online) {
+      setToast({ type: "info", msg: "Sem internet — rascunho salvo localmente" });
+      setTimeout(() => setToast(null), 2500);
+      return;
+    }
     setSaving(true);
     try {
       if (isNew) {
         const created = await formsApi.create(form);
+        try {
+          localStorage.removeItem(draftKey);
+          // mover rascunho para a nova chave do id, vazio
+        } catch {}
         setToast({ type: "ok", msg: "Formulário criado!" });
         navigate(`/form/${created.id}`, { replace: true });
       } else {
         await formsApi.update(id, form);
+        try {
+          localStorage.removeItem(draftKey);
+        } catch {}
         setToast({ type: "ok", msg: "Alterações salvas" });
       }
     } catch (e) {
       console.error(e);
-      setToast({ type: "error", msg: "Erro ao salvar" });
+      setToast({ type: "error", msg: "Erro ao salvar — rascunho mantido localmente" });
     } finally {
       setSaving(false);
       setTimeout(() => setToast(null), 2200);
@@ -144,6 +204,11 @@ const FormEditor = () => {
             {isNew ? "Novo Formulário" : form.localidade || "Formulário"}
           </h1>
         </div>
+        {!online && (
+          <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md" data-testid="offline-badge">
+            <WifiOff className="w-3 h-3" /> Offline
+          </span>
+        )}
         {!isNew && (
           <div className="relative">
             <button onClick={() => setExportOpen(!exportOpen)} className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center" data-testid="header-export">
@@ -257,26 +322,6 @@ const FormEditor = () => {
           </div>
         </SectionCard>
 
-        {/* Deposits Eliminated */}
-        <SectionCard title="Depósitos Eliminados" subtitle="Classificação A1 a E">
-          {CLASSIFICACAO_DEPOSITOS.map((d) => (
-            <div key={d.key} className="flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-slate-800 font-medium">{d.label.split("–")[0].trim()}</p>
-                <p className="text-xs text-slate-500 truncate">{d.label.split("–")[1]?.trim()}</p>
-              </div>
-              <input
-                type="number"
-                inputMode="numeric"
-                className="w-20 border border-slate-300 rounded-lg px-2 py-2 text-center text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={form.depositos_eliminados[d.key] || 0}
-                onChange={(e) => setDep(d.key, Number(e.target.value) || 0)}
-                data-testid={`dep-${d.key}`}
-              />
-            </div>
-          ))}
-        </SectionCard>
-
         {/* Deposits Treated */}
         <SectionCard title="Depósitos Tratados" subtitle="Tratamento focal — resumo">
           <div className="grid grid-cols-3 gap-3">
@@ -337,7 +382,16 @@ const FormEditor = () => {
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg text-sm font-medium shadow-lg ${toast.type === "ok" ? "bg-green-600 text-white" : "bg-red-600 text-white"}`} data-testid="toast">
+        <div
+          className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg text-sm font-medium shadow-lg ${
+            toast.type === "ok"
+              ? "bg-green-600 text-white"
+              : toast.type === "info"
+              ? "bg-blue-700 text-white"
+              : "bg-red-600 text-white"
+          }`}
+          data-testid="toast"
+        >
           {toast.msg}
         </div>
       )}

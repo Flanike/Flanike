@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database } from "lucide-react";
+import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff } from "lucide-react";
 import { formsApi, catalogApi } from "@/lib/api";
 import { ATIVIDADES } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
+import { useOnline } from "@/hooks/useOnline";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [catalogStats, setCatalogStats] = useState({ imoveis: 0, quarteiroes: 0 });
+  const online = useOnline();
 
   const load = async () => {
     setLoading(true);
@@ -64,16 +66,23 @@ const Dashboard = () => {
     <div className="app-shell pb-28">
       {/* Header */}
       <header className="px-5 pt-8 pb-6 bg-white border-b border-slate-200">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-10 h-10 rounded-xl bg-blue-800 flex items-center justify-center">
-            <ClipboardList className="w-5 h-5 text-white" />
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-800 flex items-center justify-center">
+              <ClipboardList className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="section-title">PNCD</p>
+              <h1 className="text-2xl font-semibold text-slate-900 leading-tight font-display">
+                Resumo Diário D1
+              </h1>
+            </div>
           </div>
-          <div>
-            <p className="section-title">PNCD</p>
-            <h1 className="text-2xl font-semibold text-slate-900 leading-tight font-display">
-              Resumo Diário D1
-            </h1>
-          </div>
+          {!online && (
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md" data-testid="offline-badge">
+              <WifiOff className="w-3 h-3" /> Offline
+            </span>
+          )}
         </div>
         <p className="text-sm text-slate-500 mt-2">
           Serviço Antivetorial — Controle da Dengue

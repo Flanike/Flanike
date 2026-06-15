@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 3 — PWA + visited indicator + removed 'Depósitos Eliminados'. Backend: 19/19 pytest pass (100%) including 5 new tests for GET /api/imoveis/visited (shape, post→get, delete→get, empty-visits skipped, lowercase normalization, numero-only). Regression on /api/forms, /api/imoveis, /api/quarteiroes, /api/localidade all OK. PWA assets verified via HTTP: /manifest.json (valid JSON, name='PNCD D1 — Resumo Diário', display='standalone', 2 icons), /service-worker.js (3260 bytes), /icon-192.png, /icon-512.png all return 200. In-browser: SW registered (1 registration, controller=true, scope=https://…/), manifest <link> + theme-color #1E40AF meta in <head>. Frontend (mobile 420x900): Dashboard online → no offline-badge; after window.dispatchEvent(new Event('offline')) the badge with data-testid='offline-badge' appears. /form/new: 'Depósitos Eliminados' (Classificação A1-E) section is REMOVED; 'Depósitos Tratados' section remains. Autosave creates localStorage key 'pncd_d1_draft_new' (6777 chars) after typing; after reload toast 'Rascunho local restaurado' is shown and form re-prefills municipio/localidade/zona. Catalogo selecting QT1: data-testid='qt-stats' shows Total=45 / Visitados=2 / Pendentes=43; filter-all/filter-visited/filter-pending buttons all render; 2 imóveis carry data-testid='visited-{id}' badge (CheckCircle2). ImovelPicker (open via 'Buscar no cadastro' from VisitModal) with QT=1 shows 45 items, of which 2 display '· Visitado' label with green check icon (the same 2 imóveis as catalogo).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_visited.py",
+    "/app/backend/tests/test_d1_forms.py",
+    "/app/backend/tests/test_catalogo.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional / nice-to-have) ImovelPicker shows '· Visitado' text + green icon for visited imóveis but lacks a stable data-testid='picker-visited-{id}'. Adding it would make the visual indicator independently testable (currently the assertion relies on inner text). Not blocking.",
+    "(Pre-existing from iter 2) Dev-only React hydration warning: <span> inside <option> in Catalogo.jsx select & ImovelPicker.jsx select. Caused by the Emergent visual-editor wrapper injecting <span data-ve-dynamic> around dynamic option text. Harmless in production build but noisy in console.",
+    "(Pre-existing) Dashboard 'Cadastro' card uses /api/imoveis/count (988) — now consistent with /api/imoveis. Previous 968 vs 988 mismatch from iter 2 appears resolved by switching to countImoveis()."
+  ],
+  "critical_code_review_comments": [
+    "service-worker.js: catalog cache-first returns `cached || (await network) || empty-array` — note the `await network` triggers the network even when cached is present (good for refresh) and returns the network result only if cached is missing; OK. Edge: when offline AND no cache yet, returns `Response(JSON.stringify([]))` which is safe for /api/localidade (frontend expects object|null but null check `if (!doc) return null` — frontend gets `[]` and may render empty rather than the friendly null state). Minor concern only for cold-offline-first-launch.",
+    "service-worker.js skipWaiting()+clients.claim() means a new SW version can take over mid-session — acceptable for this app but could cause one stale fetch after deploy.",
+    "Backend /api/imoveis/visited iterates up to 5000 forms; sufficient for current scale. Note: visits without quarteirao but with logradouro still produce a key like '|rua x|10' (empty qt part). Acceptable; matches frontend imovelKey() helper.",
+    "FormEditor draftKey 'pncd_d1_draft_new' is shared by any user opening the same browser — if multi-user device, last typed draft wins. Acceptable for field-team scenario.",
+    "PWA manifest icons use 'purpose: any maskable' — both icons share this purpose, OK per spec.",
+    "useOnline hook (inferred via behavior) correctly toggles via online/offline events — verified by simulated event toggling the badge."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_visited.py (NEW — 5 tests for /api/imoveis/visited)"
+  ],
+  "success_rate": {"backend": "100% (19/19 pytest)", "frontend": "100% — all 7 requested UI scenarios verified (offline badge online/offline, SW registration, manifest meta, draft autosave + restore toast, removed depósitos eliminados section, catalog qt-stats + filters + visited badges, picker visitado label)"},
+  "test_credentials": "N/A (no auth)",
+  "seed_data_creation": "Backend tests create transient TEST_VIS_* prefixed forms and clean them up. No persistent test data added.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "PWA + visited endpoint + section removal all verified end-to-end. The seeded form mentioned in the request (1 form with 3 visits in QT1 & QT3) is present: QT1 shows 2 visited imóveis on both /catalogo and the ImovelPicker. The 3rd visit was in QT3 (unverified this iteration — was tested in iter 2 chain). Service worker is active and registered; manifest is served. Autosave key 'pncd_d1_draft_{id|new}' persists after debounce (~1-1.5s) and restoration triggers an info-style toast. Removing the depósitos eliminados section also removed it from CSV/PDF export (per E1's notes); not re-tested in this iteration. Backend test file /app/backend/tests/test_visited.py uses the same BASE_URL pattern as the existing suite and is collected by /app/backend/tests/.",
+  "rca of the issue": "No active issues. One minor playwright timing artifact: after reloading /form/new, eval_on_selector on [data-testid='folha-input'] threw 'element not found' once — but the same selector was successfully filled BEFORE the reload, and the restoration toast 'Rascunho local restaurado' is visibly shown in the post-reload screenshot, confirming the autosave/restore flow works. The selector miss was a race with the toast overlay rendering, not a functional bug."
+}

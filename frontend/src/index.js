@@ -21,3 +21,12 @@ root.render(
     </QueryClientProvider>
   </React.StrictMode>,
 );
+
+// PWA: registra o service worker (offline para uso em campo sem internet)
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/service-worker.js")
+      .catch((err) => console.warn("SW registration failed:", err));
+  });
+}
