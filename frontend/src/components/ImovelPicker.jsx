@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
-import { X, Search, MapPin, CheckCircle2 } from "lucide-react";
+import { X, Search, MapPin, CheckCircle2, Plus } from "lucide-react";
 import { catalogApi } from "@/lib/api";
 import { imovelKey } from "@/constants/d1";
+import ImovelEditor from "@/components/ImovelEditor";
 
 const inputCls =
   "w-full border border-slate-300 rounded-lg px-3 py-2.5 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white";
@@ -21,6 +22,13 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [visitedSet, setVisitedSet] = useState(new Set());
+  const [editorOpen, setEditorOpen] = useState(false);
+
+  const reloadImoveis = () => {
+    if (!qt) return;
+    catalogApi.imoveis({ quarteirao: qt }).then(setImoveis).catch(() => setImoveis([]));
+    catalogApi.quarteiroes().then(setQuarteiroes).catch(() => {});
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -78,13 +86,24 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
             <p className="text-xs text-slate-500 uppercase tracking-widest">Cadastro</p>
             <h2 className="text-xl font-semibold text-slate-900 font-display">Selecionar Imóvel</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center"
-            data-testid="close-picker"
-          >
-            <X className="w-5 h-5 text-slate-600" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setEditorOpen(true)}
+              className="bg-blue-800 hover:bg-blue-900 text-white text-xs font-medium rounded-lg px-3 py-2 flex items-center gap-1.5"
+              data-testid="picker-new-imovel"
+              title="Adicionar imóvel novo ao cadastro"
+            >
+              <Plus className="w-4 h-4" />
+              Novo
+            </button>
+            <button
+              onClick={onClose}
+              className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center"
+              data-testid="close-picker"
+            >
+              <X className="w-5 h-5 text-slate-600" />
+            </button>
+          </div>
         </div>
 
         <div className="px-5 pt-4 pb-3 border-b border-slate-100 bg-slate-50/50 space-y-3">
@@ -177,6 +196,21 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
           )}
         </div>
       </div>
+
+      <ImovelEditor
+        open={editorOpen}
+        mode="create"
+        defaultQuarteirao={qt || defaultQuarteirao}
+        onClose={() => setEditorOpen(false)}
+        onSaved={(novo) => {
+          // Atualiza listas e seleciona o quarteirão do novo
+          if (novo?.quarteirao && novo.quarteirao !== qt) setQt(novo.quarteirao);
+          reloadImoveis();
+          setEditorOpen(false);
+          // Já preenche a visita com o imóvel recém criado
+          onPick(novo);
+        }}
+      />
     </div>
   );
 };
