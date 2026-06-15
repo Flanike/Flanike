@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, MapPin, Building2, Home, Trees, Store, Landmark, CheckCircle2, Plus, Pencil } from "lucide-react";
+import { ArrowLeft, Search, MapPin, Building2, Home, Trees, Store, Landmark, CheckCircle2, Plus, Pencil, Info } from "lucide-react";
 import { catalogApi } from "@/lib/api";
-import { imovelKey } from "@/constants/d1";
+import { imovelKey, CLASSIFICACAO_DEPOSITOS } from "@/constants/d1";
 import ImovelEditor from "@/components/ImovelEditor";
 
 const inputCls =
@@ -29,6 +29,7 @@ const Catalogo = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState("create"); // create | edit
   const [editingImovel, setEditingImovel] = useState(null);
+  const [showClassification, setShowClassification] = useState(false);
 
   const reloadAll = () => {
     Promise.all([
@@ -184,6 +185,42 @@ const Catalogo = () => {
             <p className="text-[10px] text-blue-800 uppercase tracking-widest font-semibold">Outros</p>
             <p className="text-2xl font-semibold text-blue-900 font-display">{stats.outros}</p>
           </div>
+        </section>
+
+        {/* Card colapsável: Classificação de Depósitos (referência informativa) */}
+        <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" data-testid="classificacao-card">
+          <button
+            onClick={() => setShowClassification(!showClassification)}
+            className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors"
+            data-testid="classificacao-toggle"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+                <Info className="w-4 h-4 text-amber-700" />
+              </div>
+              <div className="text-left min-w-0">
+                <p className="text-sm font-semibold text-slate-900 font-display">Classificação de Depósitos</p>
+                <p className="text-xs text-slate-500 truncate">A1 a E — referência PNCD</p>
+              </div>
+            </div>
+            <span className="text-slate-400 text-sm shrink-0">{showClassification ? "−" : "+"}</span>
+          </button>
+          {showClassification && (
+            <div className="border-t border-slate-100 px-5 py-3 space-y-2">
+              {CLASSIFICACAO_DEPOSITOS.map((d) => {
+                const [codigo, ...descParts] = d.label.split("–");
+                const desc = descParts.join("–").trim();
+                return (
+                  <div key={d.key} className="flex items-start gap-3" data-testid={`classif-${d.key}`}>
+                    <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 shrink-0 min-w-[28px] text-center">
+                      {codigo.trim()}
+                    </span>
+                    <span className="text-xs text-slate-700 leading-relaxed">{desc}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* Picker */}

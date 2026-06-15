@@ -190,10 +190,6 @@ input[type=number] {
 }
 
 @media print {
-    @page {
-        size: A4 landscape;
-        margin: 5mm;
-    }
     body {
         background: white !important;
         -webkit-print-color-adjust: exact;

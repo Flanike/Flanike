@@ -6,11 +6,19 @@ import { visitIsFilled } from "@/constants/d1";
 
 // Layout fiel ao D1 oficial (planilha mestre):
 // 32 colunas A..AF, 31 linhas. Reproduz merged cells via colspan/rowspan.
+const PAPER_SIZES = {
+  a4: { label: "A4 paisagem", css: "A4 landscape" },
+  a3: { label: "A3 paisagem", css: "A3 landscape" },
+  letter: { label: "Carta paisagem", css: "Letter landscape" },
+  legal: { label: "Ofício paisagem", css: "Legal landscape" },
+};
+
 const PrintD1 = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [paper, setPaper] = useState("a4");
 
   useEffect(() => {
     formsApi.get(id).then(setForm).catch(() => setForm(null)).finally(() => setLoading(false));
@@ -66,19 +74,37 @@ const PrintD1 = () => {
         <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center" data-testid="print-back">
           <ArrowLeft className="w-5 h-5 text-slate-700" />
         </button>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <p className="text-[10px] uppercase tracking-widest text-slate-500 font-medium">Visualização para impressão</p>
-          <h1 className="text-base font-semibold text-slate-900 font-display">Modelo D1 oficial</h1>
+          <h1 className="text-base font-semibold text-slate-900 font-display truncate">Modelo D1 oficial</h1>
         </div>
+        <select
+          value={paper}
+          onChange={(e) => setPaper(e.target.value)}
+          className="border border-slate-300 rounded-lg px-2 py-2 text-xs font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          data-testid="paper-size-select"
+          title="Tamanho do papel"
+        >
+          {Object.entries(PAPER_SIZES).map(([k, v]) => (
+            <option key={k} value={k}>{v.label}</option>
+          ))}
+        </select>
         <button
           onClick={() => window.print()}
-          className="bg-blue-800 hover:bg-blue-900 text-white text-sm font-medium rounded-lg px-4 py-2.5 flex items-center gap-2"
+          className="bg-blue-800 hover:bg-blue-900 text-white text-sm font-medium rounded-lg px-4 py-2.5 flex items-center gap-2 shrink-0"
           data-testid="print-btn"
         >
           <Printer className="w-4 h-4" />
           Imprimir / PDF
         </button>
       </div>
+
+      {/* CSS dinâmico para tamanho de papel */}
+      <style>{`
+        @media print {
+          @page { size: ${PAPER_SIZES[paper].css}; margin: 5mm; }
+        }
+      `}</style>
 
       <div className="print-page d1-page">
         {/* Título oficial */}
@@ -251,18 +277,11 @@ const PrintD1 = () => {
                 if (idx === 12 || idx === 13) {
                   return <Td colSpan={10} className="center">{idx === 12 ? (form.quarteiroes_concluidos || "") : ""}</Td>;
                 }
-                // idx 14 = row 24: "Classificação de Depósitos"
-                if (idx === 14) return <Td colSpan={10} className="strong center">Classificação de Depósitos</Td>;
-                // idx 15..19 (rows 25..29): A1, A2, B, C, D1
-                const classRows = [
-                  "A1 - Caixa d'água (elevado)",
-                  "A2 - Outros depósitos de armazenamento de água (baixo)",
-                  "B - Pequenos depósitos móveis",
-                  "C - Depósitos fixos",
-                  "D1 - Pneus e outros materiais rodantes",
-                ];
+                // idx 14 = row 24: reservado (sem classificação na impressão)
+                if (idx === 14) return <Td colSpan={10}></Td>;
+                // idx 15..19: linhas vazias (a classificação A1-E foi movida para uso interno do app)
                 if (idx >= 15 && idx <= 19) {
-                  return <Td colSpan={10} className="left small">{classRows[idx - 15]}</Td>;
+                  return <Td colSpan={10}></Td>;
                 }
                 return null;
               };
@@ -299,7 +318,7 @@ const PrintD1 = () => {
               <Td className="center">{form.depositos_tratados?.tipo || ""}</Td>
               <Td className="num strong">{form.depositos_tratados?.quantidade ?? ""}</Td>
               <Td className="num strong">{totalDepTrat || 0}</Td>
-              <Td colSpan={10} className="left small">D2 - Lixo (recipientes plásticos, latas), sucatas e entulhos</Td>
+              <Td colSpan={10}></Td>
             </tr>
             {/* Assinaturas (linha 31) */}
             <tr className="signatures">
@@ -307,7 +326,7 @@ const PrintD1 = () => {
               <Td colSpan={5} className="sig">{form.assinatura_agente || ""}</Td>
               <Td colSpan={6} className="strong">Assinatura do Supervisor</Td>
               <Td colSpan={6} className="sig">{form.assinatura_supervisor || ""}</Td>
-              <Td colSpan={10} className="left small">E - Depósitos naturais</Td>
+              <Td colSpan={10}></Td>
             </tr>
           </tbody>
         </table>
