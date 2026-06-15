@@ -249,7 +249,7 @@ const FormEditor = () => {
   const handleSave = async () => {
     setSaving(true);
     // Garante valores fixos
-    const formToSave = { ...form, categoria: "BR", tipo: "Sede" };
+    const formToSave = { ...form, categoria: "BR", tipo: "Sede", atividade: "4 - Tratamento" };
     try {
       if (isNew) {
         const created = await formsApi.create(formToSave);
@@ -457,11 +457,13 @@ const FormEditor = () => {
               <input type="date" className={inputCls} value={form.data_atividade} onChange={(e) => set("data_atividade", e.target.value)} data-testid="input-data" />
             </Field>
           </div>
-          <Field label="Atividade">
-            <select className={inputCls} value={form.atividade} onChange={(e) => set("atividade", e.target.value)} data-testid="input-atividade">
-              <option value="">Selecione...</option>
-              {ATIVIDADES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-            </select>
+          <Field label="Atividade" hint="Fixo">
+            <input
+              className={`${inputCls} bg-slate-50 text-slate-500 cursor-not-allowed`}
+              value="4 - Tratamento"
+              readOnly
+              data-testid="input-atividade"
+            />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Quart. trabalhados" hint="Nº e sequência">

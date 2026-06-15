@@ -79,7 +79,7 @@ export const emptyForm = () => ({
   tipo: "Sede",
   folha: "",
   data_atividade: new Date().toISOString().slice(0, 10),
-  atividade: "",
+  atividade: "4 - Tratamento",
   quarteiroes_trabalhados: "",
   quarteiroes_concluidos: "",
   visits: Array.from({ length: 20 }, emptyVisit),
