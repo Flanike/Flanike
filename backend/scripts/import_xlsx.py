@@ -90,11 +90,12 @@ def to_int(v):
 def parse_qt_sheet(ws, quarteirao_num):
     """
     Itera o sheet QT, mantendo o 'lado' corrente para cada bloco.
-    Retorna lista de imóveis.
+    Retorna lista de imóveis ordenada conforme ordem original da planilha (caminhada do agente).
     """
     imoveis = []
     current_lado_left = None
     current_lado_right = None
+    ordem_counter = 0
 
     in_block = False
     for row in range(1, ws.max_row + 1):
@@ -126,10 +127,10 @@ def parse_qt_sheet(ws, quarteirao_num):
             continue
 
         # Extract left side
-        for side_def, lado in (
+        for side_idx, (side_def, lado) in enumerate((
             (LEFT_BLOCK, current_lado_left),
             (RIGHT_BLOCK, current_lado_right),
-        ):
+        )):
             logradouro = clean_str(cell(ws, row, side_def["logradouro"]))
             numero = cell(ws, row, side_def["numero"])
             tipo = clean_str(cell(ws, row, side_def["tipo"]))
@@ -138,6 +139,7 @@ def parse_qt_sheet(ws, quarteirao_num):
             if tipo and tipo not in VALID_TIPOS:
                 # ignore weird values
                 tipo = ""
+            ordem_counter += 1
             imoveis.append({
                 "id": str(uuid.uuid4()),
                 "quarteirao": str(quarteirao_num),
@@ -149,6 +151,9 @@ def parse_qt_sheet(ws, quarteirao_num):
                 "hab": to_int(cell(ws, row, side_def["hab"])) or 0,
                 "cao": to_int(cell(ws, row, side_def["cao"])) or 0,
                 "gato": to_int(cell(ws, row, side_def["gato"])) or 0,
+                "ordem": ordem_counter,
+                "row_origem": row,
+                "side_origem": side_idx,
             })
 
     return imoveis

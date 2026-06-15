@@ -115,6 +115,7 @@ class Imovel(BaseModel):
     hab: int = 0
     cao: int = 0
     gato: int = 0
+    ordem: int = 0
 
 
 class ImovelInput(BaseModel):
@@ -328,13 +329,13 @@ async def list_imoveis(quarteirao: Optional[str] = None, lado: Optional[str] = N
             {"numero": {"$regex": q, "$options": "i"}},
         ]
     docs = await db.imoveis.find(query, {"_id": 0}).to_list(5000)
-    # ordena por lado (numérico se possível) e logradouro
+    # Ordena por (lado, ordem da planilha original) preservando o caminho do agente
     def _lado_key(d):
         v = str(d.get("lado", "") or "")
         if v.isdigit():
             return (0, int(v), "")
         return (1, 0, v)
-    docs.sort(key=lambda d: (_lado_key(d), d.get("logradouro", ""), d.get("numero", "")))
+    docs.sort(key=lambda d: (_lado_key(d), d.get("ordem") or 0, d.get("logradouro", ""), d.get("numero", "")))
     return [Imovel(**d) for d in docs]
 
 
