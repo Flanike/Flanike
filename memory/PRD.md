@@ -2,58 +2,73 @@
 
 ## Problema Original
 > "crie um formulário a partir da planilha d1"
+> "transforme a planilha base em banco de dados para alimentar esse formulário"
 
-A planilha enviada (`RESUMO 3º CICLO.xlsx`, aba **D1**) é o formulário oficial **PNCD – Resumo Diário do Serviço Antivetorial** do Programa Nacional de Controle da Dengue (Brasil). Cada folha registra um dia de trabalho do agente de endemias com até 20 visitas a imóveis e um resumo de depósitos eliminados/tratados.
+A planilha enviada (`RESUMO 3º CICLO.xlsx`) contém:
+- **Aba D1**: o formulário oficial "Resumo Diário do Serviço Antivetorial" do PNCD
+- **Abas QT01–QT33**: cadastro de imóveis por quarteirão (Boletim de Reconhecimento Geográfico)
+- **RG2CAB**: totais agregados por quarteirão (residências, comércios, etc.)
+- **RESUMO**: resumo semanal
 
 ## Escolhas do Usuário
-- Aplicação: **app web mobile-first** para uso particular (no celular do agente)
-- Funcionalidades: **Preencher, salvar, listar, editar e exportar**
-- Linhas de visitas: **quantidade fixa (20)**
-- Visual: **cores claras** (tema light "Soft Utility / Swiss")
-- Idioma: PT-BR
+- **Tipo:** app web mobile-first para uso particular do agente
+- **Funcionalidades:** preencher, salvar, listar, editar, exportar (CSV/PDF)
+- **Visitas:** quantidade fixa (20)
+- **Visual:** cores claras
+- **Idioma:** PT-BR
 
 ## Persona
-**Agente de Endemias (ACE)** — preenche o D1 em campo, pelo celular, ao longo do dia. Precisa de UI simples, com toques grandes, contraste forte e dados salvos rapidamente.
+**Agente de Endemias (ACE)** em Santa Cruz/RN — preenche o D1 em campo, no celular, ao longo do dia.
 
 ## Arquitetura
-- **Frontend:** React 19 + React Router + Tailwind, mobile-first (`max-w-[640px]`), fontes Work Sans + IBM Plex Sans
+- **Frontend:** React 19 + React Router + Tailwind, mobile-first
 - **Backend:** FastAPI + Motor (MongoDB async)
-- **Banco:** MongoDB local (coleção `d1_forms`)
-- **Export:** CSV nativo + PDF via `jspdf` + `jspdf-autotable` (layout em paisagem, A4)
+- **Banco:** MongoDB local com coleções: `d1_forms`, `imoveis`, `quarteiroes`, `localidade`
+- **Importação:** script Python (`backend/scripts/import_xlsx.py`) parseia `.xlsx` via openpyxl
 
 ## Modelo de Dados
-- `D1Form`: cabeçalho (município, localidade, categoria, zona, tipo, folha, data, atividade, quarteirões), 20 × `Visit`, `depositos_eliminados` (A1–E), `depositos_tratados`, casas fechadas/recuperadas/informados, assinaturas
-- `Visit`: quarteirão, sequência, lado, logradouro, número, complemento, tipo de imóvel (R/C/TB/PE/O), hora, tipo de visita, pendência, depósitos eliminados, foco, tratado, larvicida, quantidade, qtde dep. tratados
-- IDs: UUID; datetimes em ISO 8601 (UTC)
+### Coleções
+- `d1_forms` — formulários salvos pelo agente (1 = 1 dia de campo)
+- `imoveis` — 988 imóveis com `quarteirao`, `lado`, `logradouro`, `numero`, `seq`, `tipo_imovel`, `hab`, `cao`, `gato`
+- `quarteiroes` — 33 quarteirões com totais (residencia, comercio, outros, terreno_baldio, soma_imoveis, habitantes, cao, gato)
+- `localidade` — 1 doc: SANTA CRUZ/RN, Conjunto Aluízio Bezerra, Zona 14
 
 ## Endpoints
-- `GET /api/forms` → lista resumida (`D1FormSummary`)
-- `POST /api/forms` → cria (garante 20 visitas)
-- `GET /api/forms/{id}` → detalhe
-- `PUT /api/forms/{id}` → atualiza
-- `DELETE /api/forms/{id}`
+### Formulários
+- `GET/POST /api/forms` — listar/criar
+- `GET/PUT/DELETE /api/forms/{id}`
 
-## O que foi entregue (15/Jan/2026)
-- Dashboard com histórico, contador de formulários, ações Editar/Exportar/Excluir
-- Editor com seções: Identificação, Visitas (20 cards), Totais auto-calculados por tipo, Depósitos Eliminados (A1–E), Depósitos Tratados, Resumo (fechadas/recuperadas/informados), Assinaturas
-- Modal de visita full-screen com 18 campos
-- Exportação CSV e PDF (mantendo cabeçalho oficial PNCD)
-- Totais e indicadores visuais (foco/tratado, borda verde nos cards preenchidos)
-- Backend CRUD completo + testes (100% pass)
+### Catálogo (alimentado pela planilha)
+- `GET /api/localidade` — info da localidade
+- `GET /api/quarteiroes` — lista 33 quarteirões com totais
+- `GET /api/imoveis?quarteirao=N&lado=N&q=texto` — filtra imóveis
+- `GET /api/imoveis/count` — contagem total
+
+## Status (Janeiro/2026)
+### ✅ Implementado e testado (100% backend, ~95% frontend e2e)
+- **Iteração 1 — MVP:**
+  - Dashboard com lista de formulários e ações Editar/Exportar/Excluir
+  - Editor com seções: Identificação, 20 Visitas (cards expansíveis com modal), Totais, Depósitos (A1–E), Resumo, Assinaturas
+  - Export CSV e PDF (layout oficial PNCD em A4 paisagem)
+- **Iteração 2 — Banco alimentado pela planilha:**
+  - Script `import_xlsx.py` importa as 33 abas QT e RG2CAB
+  - 988 imóveis + 33 quarteirões + 1 localidade persistidos
+  - Página `/catalogo` para explorar o cadastro com filtros e busca
+  - Município/Localidade/Zona auto-preenchidos em formulários novos
+  - `ImovelPicker` no modal de visita — agente seleciona QT → escolhe imóvel cadastrado → preenche logradouro/número/tipo automaticamente
 
 ## Backlog
-### P1 (próximos)
-- Cálculo automático dos totais "Casas Fechadas/Recuperadas/Informados" a partir das pendências das visitas
-- PWA: instalação no celular (manifest + service worker offline)
-- Salvar rascunho local (IndexedDB) para campo sem internet
+### P1
+- PWA instalável + offline (campo sem internet)
+- Autocomplete de logradouros conforme digita
+- Marcar imóvel como "visitado hoje" no catálogo
+### P2
+- Auth multi-agente
+- Importar D1 de ciclos anteriores
+- Estatísticas: imóveis pendentes, IIP (Índice de Infestação Predial)
+- Sincronização com SISPNCD
 
-### P2 (futuro)
-- Múltiplos agentes com login (auth)
-- Importação de planilhas D1 antigas
-- Estatísticas semanais/mensais (resumo do ciclo)
-- Sincronização com o sistema SISPNCD oficial
-
-## Próximas Ações Sugeridas
-1. Validar o fluxo no celular real do usuário
-2. Adicionar PWA para uso offline
-3. Considerar autocálculo de Casas Fechadas baseado em pendências
+## Próximas Ações
+1. Validar em celular real
+2. Adicionar PWA offline
+3. Implementar IIP automático (Imóveis com foco / Imóveis trabalhados × 100)

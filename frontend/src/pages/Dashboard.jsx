@@ -26,10 +26,8 @@ const Dashboard = () => {
 
   useEffect(() => {
     load();
-    catalogApi
-      .quarteiroes()
-      .then((qs) => {
-        const total = qs.reduce((acc, q) => acc + (q.soma_imoveis || 0), 0);
+    Promise.all([catalogApi.quarteiroes(), catalogApi.countImoveis()])
+      .then(([qs, { total }]) => {
         setCatalogStats({ imoveis: total, quarteiroes: qs.length });
       })
       .catch(() => {});

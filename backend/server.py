@@ -265,6 +265,15 @@ async def list_quarteiroes():
     return [Quarteirao(**d) for d in docs]
 
 
+@api_router.get("/imoveis/count")
+async def count_imoveis(quarteirao: Optional[str] = None):
+    query: dict = {}
+    if quarteirao:
+        query["quarteirao"] = str(quarteirao)
+    total = await db.imoveis.count_documents(query)
+    return {"total": total}
+
+
 @api_router.get("/imoveis", response_model=List[Imovel])
 async def list_imoveis(quarteirao: Optional[str] = None, lado: Optional[str] = None, q: Optional[str] = None):
     """Lista imóveis cadastrados (da planilha base).
