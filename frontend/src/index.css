@@ -217,3 +217,9 @@ input[type=number] {
         border-color: #000 !important;
     }
 }
+
+/* Move o badge "Made with Emergent" para a esquerda */
+#emergent-badge {
+    left: 16px !important;
+    right: auto !important;
+}
