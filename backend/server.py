@@ -322,8 +322,13 @@ async def list_imoveis(quarteirao: Optional[str] = None, lado: Optional[str] = N
             {"numero": {"$regex": q, "$options": "i"}},
         ]
     docs = await db.imoveis.find(query, {"_id": 0}).to_list(5000)
-    # ordena por lado e logradouro
-    docs.sort(key=lambda d: (int(d.get("lado", "0") or 0), d.get("logradouro", ""), d.get("numero", "")))
+    # ordena por lado (numérico se possível) e logradouro
+    def _lado_key(d):
+        v = str(d.get("lado", "") or "")
+        if v.isdigit():
+            return (0, int(v), "")
+        return (1, 0, v)
+    docs.sort(key=lambda d: (_lado_key(d), d.get("logradouro", ""), d.get("numero", "")))
     return [Imovel(**d) for d in docs]
 
 
@@ -378,12 +383,17 @@ async def _refresh_quarteirao_totals(quarteirao: str):
         "gato": sum(int(i.get("gato") or 0) for i in imoveis),
     }
     existing = await db.quarteiroes.find_one({"quarteirao": str(quarteirao)}, {"_id": 0})
+    if totals["soma_imoveis"] == 0:
+        # nenhum imóvel restante — remove doc do agregado
+        if existing:
+            await db.quarteiroes.delete_one({"quarteirao": str(quarteirao)})
+        return
     if existing:
         await db.quarteiroes.update_one(
             {"quarteirao": str(quarteirao)},
             {"$set": totals},
         )
-    elif totals["soma_imoveis"] > 0:
+    else:
         await db.quarteiroes.insert_one(
             {"id": str(uuid.uuid4()), "quarteirao": str(quarteirao), **totals}
         )

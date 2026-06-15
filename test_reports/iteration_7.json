@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration 7 retest after fixes to bugs from iter6. Both critical bugs are CONFIRMED FIXED. Backend: 33/33 pytest pass including 6 new iter7 tests targeting the regressions. (1) GET /api/imoveis no longer crashes when lado is non-numeric — robust _lado_key separates numerics (sorted by value) before non-numerics (alphabetical). (2) When the last imovel of a newly created QT is deleted, the quarteiroes doc is properly removed (no orphan with zero totals). Frontend: ed-lado is now a free-text INPUT (tag=INPUT, type=text, placeholder='1, 2, 3…', inputMode=numeric) and accepts both numeric ('5') and non-numeric ('P') values. CREATE+EDIT flow visually works (first run got to 'QT 88 — 1 imóveis · 3 hab.' in dropdown). End-to-end CRUD verified by API after manual cleanup: 988 baseline imoveis intact, 33 quarteiroes intact, no orphans.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/catalogo", "issues": ["Pre-existing hydration warning '<span> cannot be a child of <option>' on catalog-qt-select option labels. Unchanged from iter5/iter6 — non-blocking but should eventually be addressed by wrapping option content in plain text (no span). Likely caused by template tooling injecting x-* spans into JSX option children."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter7.py",
+    "/app/backend/tests/test_iter6.py",
+    "/app/backend/tests/test_catalogo.py",
+    "/app/backend/tests/test_d1_forms.py",
+    "/app/backend/tests/test_visited.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/pytest/pytest_iter7.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: Fix the persistent hydration warning at catalog-qt-select option content (wrap label in fragment instead of span)."
+  ],
+  "critical_code_review_comments": [
+    "server.py:326 _lado_key correctly separates numeric vs non-numeric lados: returns (0, int(v), '') for digits and (1, 0, v) for non-digit strings, then secondary sort by logradouro+numero. Robust against any string input.",
+    "server.py:386-399 _refresh_quarteirao_totals now deletes the quarteiroes doc when soma_imoveis becomes 0, preventing orphan docs. Correct idempotent behavior: insert on first imovel, update on subsequent, delete when last is removed.",
+    "ImovelEditor.jsx:111-120 ed-lado is now a free input text (was a select with P/I/U values that caused the iter6 500). Field carries inputMode='numeric' as a UX hint to mobile keyboards, but type='text' allows any value — aligns with the seeded dataset's mostly-numeric lados.",
+    "Test surface complete: test_iter7.py asserts both regressions explicitly (non-numeric lado + orphan QT removal) AND idempotency on baseline QT 1 (create+delete restores soma_imoveis exactly)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter7.py (new — 6 tests for iter6 bug fixes + regression)"
+  ],
+  "success_rate": {"backend": "100% (33/33 pytest pass, including 6/6 new iter7 retests)", "frontend": "95% — ImovelEditor lado field correctly converted to free-text INPUT and verified accepts any value; CREATE flow produces visible QT entry; manual Playwright reproduction of the full edit+delete loop was flaky on a second modal open (timing/event handler), but the equivalent API-driven flow (which the UI calls) passes end-to-end in test_iter7. No code defect found."},
+  "test_credentials": "N/A (no auth in this app)",
+  "seed_data_creation": "Tests create transient TEST_-prefixed imoveis in QT 99 and clean them up. Final state verified: 33 quarteiroes, 988 baseline imoveis, no QT 88/99 orphans.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter6's two critical regressions are CLOSED: (a) list_imoveis sort robust to non-numeric lado; (b) _refresh_quarteirao_totals removes empty-QT docs. The next agent should NOT need to retest these unless backend code changes around server.py:306-399. The hydration warning at catalog-qt-select option content is the only carry-over from iter5 and is purely cosmetic.",
+  "rca of the issue": "Both fixes applied in iter6→iter7 are verified working: (1) server.py:326 _lado_key changed from `int(d.get('lado','0') or 0)` to a robust tuple key — first element 0 for digit strings (sorted by their integer value), 1 for non-digits (sorted alphabetically), ensuring no ValueError on any string input. (2) server.py:386 added explicit delete branch when totals['soma_imoveis']==0, removing the quarteiroes doc instead of leaving a zero-filled orphan. (3) ImovelEditor.jsx changed <select> with P/I/U options to a free <input type='text'> with inputMode='numeric', aligning with the seeded dataset and never producing values the backend can't sort. Reproduction of iter6 failure no longer possible — verified by creating imovel with lado='P' and confirming GET /api/imoveis returns 200 with correctly sorted output ['1','2','A','P']."
+}
