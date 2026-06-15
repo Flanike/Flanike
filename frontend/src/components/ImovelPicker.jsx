@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { X, Search, MapPin, CheckCircle2, Plus } from "lucide-react";
+import { X, Search, MapPin, CheckCircle2, Plus, XCircle } from "lucide-react";
 import { catalogApi } from "@/lib/api";
 import { imovelKey } from "@/constants/d1";
 import ImovelEditor from "@/components/ImovelEditor";
@@ -24,6 +24,7 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
   const [visitedSet, setVisitedSet] = useState(new Set());
   const [editorOpen, setEditorOpen] = useState(false);
   const [filterLado, setFilterLado] = useState("all");
+  const [hideVisited, setHideVisited] = useState(false);
 
   const reloadImoveis = () => {
     if (!qt) return;
@@ -70,7 +71,8 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
     setFilterLado("all");
   }, [qt, open]);
 
-  const filtered = useMemo(() => {
+  // Filtros base (Lado + busca) sem aplicar "ocultar visitados" — usado para contadores fiéis
+  const filteredBase = useMemo(() => {
     let arr = imoveis;
     if (filterLado !== "all") arr = arr.filter((i) => String(i.lado) === String(filterLado));
     if (!search.trim()) return arr;
@@ -81,6 +83,11 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
         String(i.numero).toLowerCase().includes(s)
     );
   }, [imoveis, search, filterLado]);
+
+  const filtered = useMemo(() => {
+    if (!hideVisited) return filteredBase;
+    return filteredBase.filter((i) => !visitedSet.has(imovelKey(i)));
+  }, [filteredBase, hideVisited, visitedSet]);
 
   const byLado = useMemo(() => {
     const map = {};
@@ -186,6 +193,30 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
         </div>
 
         <div className="flex-1 overflow-y-auto">
+          {qt && imoveis.length > 0 && (
+            <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center gap-3 text-xs" data-testid="picker-summary">
+              <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {filteredBase.filter((im) => visitedSet.has(imovelKey(im))).length} visitados
+              </span>
+              <span className="text-slate-300">·</span>
+              <span className="inline-flex items-center gap-1 font-semibold text-rose-600">
+                <XCircle className="w-3.5 h-3.5" />
+                {filteredBase.filter((im) => !visitedSet.has(imovelKey(im))).length} faltam
+              </span>
+              <button
+                onClick={() => setHideVisited((v) => !v)}
+                className={`ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-md border transition-colors ${
+                  hideVisited
+                    ? "bg-blue-800 border-blue-800 text-white"
+                    : "bg-white border-slate-300 text-slate-700 hover:bg-slate-100"
+                }`}
+                data-testid="toggle-hide-visited"
+              >
+                {hideVisited ? "Mostrar todos" : "Ocultar visitados"}
+              </button>
+            </div>
+          )}
           {!qt ? (
             <div className="p-8 text-center text-slate-500">
               <MapPin className="w-10 h-10 text-slate-300 mx-auto mb-2" />
@@ -210,28 +241,43 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
                         <button
                           key={im.id}
                           onClick={() => onPick(im)}
-                          className={`w-full text-left px-5 py-3 hover:bg-blue-50 active:bg-blue-100 flex items-center gap-3 transition-colors ${visited ? "bg-green-50/30" : ""}`}
+                          className={`w-full text-left px-4 py-3 hover:bg-blue-50 active:bg-blue-100 flex items-center gap-3 transition-colors ${visited ? "bg-emerald-50/40" : ""}`}
                           data-testid={`pick-imovel-${im.id}`}
                         >
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border-2 ${
+                              visited
+                                ? "bg-emerald-500 border-emerald-600 text-white"
+                                : "bg-white border-rose-400 text-rose-600"
+                            }`}
+                            data-testid={`pick-status-${visited ? "visited" : "pending"}-${im.id}`}
+                            aria-label={visited ? "Visitado" : "Pendente"}
+                            title={visited ? "Imóvel já visitado" : "Imóvel ainda não visitado"}
+                          >
+                            {visited ? (
+                              <CheckCircle2 className="w-5 h-5" strokeWidth={2.5} />
+                            ) : (
+                              <XCircle className="w-5 h-5" strokeWidth={2.5} />
+                            )}
+                          </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-sm font-medium text-slate-900 truncate">
-                                {im.logradouro || "—"}
-                                {im.numero ? `, ${im.numero}` : ""}
-                                {im.seq ? ` (seq ${im.seq})` : ""}
-                              </p>
-                              {visited && <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />}
-                            </div>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-sm font-medium text-slate-900 truncate">
+                              {im.logradouro || "—"}
+                              {im.numero ? `, ${im.numero}` : ""}
+                              {im.seq ? ` (seq ${im.seq})` : ""}
+                            </p>
+                            <p className="text-xs text-slate-500 truncate">
                               {im.hab > 0 && `${im.hab} hab.`}
                               {im.cao > 0 && ` · ${im.cao} cão`}
                               {im.gato > 0 && ` · ${im.gato} gato`}
                               {!im.hab && !im.cao && !im.gato && "Sem moradores cadastrados"}
-                              {visited && <span className="ml-2 text-green-700 font-medium">· Visitado</span>}
+                              <span className={`ml-1.5 font-semibold ${visited ? "text-emerald-700" : "text-rose-600"}`}>
+                                · {visited ? "Visitado" : "Pendente"}
+                              </span>
                             </p>
                           </div>
                           {im.tipo_imovel && (
-                            <span className={`text-[11px] font-semibold px-2 py-1 rounded-md border ${tipoBadge[im.tipo_imovel] || "bg-slate-100 text-slate-600 border-slate-300"}`}>
+                            <span className={`text-[11px] font-semibold px-2 py-1 rounded-md border shrink-0 ${tipoBadge[im.tipo_imovel] || "bg-slate-100 text-slate-600 border-slate-300"}`}>
                               {im.tipo_imovel}
                             </span>
                           )}
