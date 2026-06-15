@@ -161,6 +161,17 @@ const FormEditor = () => {
       return { ...f, visits };
     });
 
+  // "Informados" = soma automática dos imóveis preenchidos nas visitas
+  const informadosCount = useMemo(
+    () => (form.visits || []).filter((v) => v && (v.logradouro || v.numero || v.tipo_imovel)).length,
+    [form.visits]
+  );
+  useEffect(() => {
+    if (Number(form.informados || 0) !== informadosCount) {
+      setForm((f) => ({ ...f, informados: informadosCount }));
+    }
+  }, [informadosCount, form.informados]);
+
   // Detecta próxima folha sibling (mesmo total, atual+1) em formulários existentes
   useEffect(() => {
     if (isNew || !form.folha) {
@@ -542,8 +553,15 @@ const FormEditor = () => {
             <Field label="Recuperadas">
               <input type="number" inputMode="numeric" className={inputCls} value={form.recuperadas} onChange={(e) => set("recuperadas", Number(e.target.value) || 0)} data-testid="recuperadas" />
             </Field>
-            <Field label="Informados">
-              <input type="number" inputMode="numeric" className={inputCls} value={form.informados} onChange={(e) => set("informados", Number(e.target.value) || 0)} data-testid="informados" />
+            <Field label="Informados" hint="Soma automática">
+              <input
+                type="text"
+                inputMode="numeric"
+                readOnly
+                className={`${inputCls} bg-slate-50 text-slate-700 cursor-not-allowed`}
+                value={informadosCount}
+                data-testid="informados"
+              />
             </Field>
           </div>
         </SectionCard>

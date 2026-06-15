@@ -426,10 +426,10 @@ async def stats_weekly():
             return None
         try:
             d = datetime.strptime(date_str, "%Y-%m-%d").date()
+            iso_year, iso_week, _ = d.isocalendar()
+            return f"{iso_year}-W{iso_week:02d}", d
         except (ValueError, TypeError):
             return None
-        iso_year, iso_week, _ = d.isocalendar()
-        return f"{iso_year}-W{iso_week:02d}", d
 
     # Mapa: quarteirão -> set de chaves de imóveis cadastrados (lower-cased)
     cad_by_qt: dict[str, set[str]] = {}

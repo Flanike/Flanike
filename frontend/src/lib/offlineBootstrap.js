@@ -17,7 +17,9 @@ const emit = () => {
   listeners.forEach((fn) => {
     try {
       fn({ ...state });
-    } catch {}
+    } catch (e) {
+      console.warn("[bootstrap] listener error:", e?.message);
+    }
   });
 };
 
@@ -45,7 +47,9 @@ const markDone = () => {
       BOOTSTRAP_KEY,
       JSON.stringify({ ts: Date.now(), version: 1 })
     );
-  } catch {}
+  } catch (e) {
+    console.warn("[bootstrap] markDone failed:", e?.message);
+  }
 };
 
 const update = (patch) => {

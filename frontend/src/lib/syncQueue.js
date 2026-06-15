@@ -17,8 +17,9 @@ const read = (key, fallback) => {
 const write = (key, value) => {
   try {
     localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* full */
+  } catch (e) {
+    // localStorage cheio ou indisponível — falha silenciosa esperada
+    console.warn("[syncQueue] write failed:", key, e?.message);
   }
 };
 
@@ -30,7 +31,9 @@ const notify = () => {
   LISTENERS.forEach((fn) => {
     try {
       fn(snapshot);
-    } catch {}
+    } catch (e) {
+      console.warn("[syncQueue] listener error:", e?.message);
+    }
   });
 };
 

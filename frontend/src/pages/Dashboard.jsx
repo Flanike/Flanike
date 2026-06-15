@@ -22,6 +22,9 @@ const Dashboard = () => {
   const [loteOpen, setLoteOpen] = useState(false);
   const [loteQty, setLoteQty] = useState("3");
   const [loteCreating, setLoteCreating] = useState(false);
+  const [loteCobertura, setLoteCobertura] = useState(false);
+  const [loteQt, setLoteQt] = useState("");
+  const [loteQuarteiroes, setLoteQuarteiroes] = useState([]);
   const [syncState, setSyncState] = useState({
     queueSize: getQueue().length,
     localForms: getLocalForms(),
@@ -446,7 +449,13 @@ const Dashboard = () => {
           </div>
         </button>
         <button
-          onClick={() => setLoteOpen(true)}
+          onClick={() => {
+            setLoteOpen(true);
+            // Lazy load quarteirões para cobertura
+            if (loteQuarteiroes.length === 0) {
+              catalogApi.quarteiroes().then(setLoteQuarteiroes).catch(() => {});
+            }
+          }}
           className="bg-white hover:bg-slate-50 active:bg-slate-100 rounded-xl border border-slate-200 p-3 shadow-sm flex flex-col items-start gap-1.5 transition-colors text-left min-w-0"
           data-testid="lote-folhas-btn"
         >
@@ -658,11 +667,52 @@ const Dashboard = () => {
                   Cabeçalho (município, localidade, zona) será copiado do <strong>último formulário</strong>.
                 </div>
               )}
+
+              {/* Modo Cobertura Rápida */}
+              <div className="bg-emerald-50/60 border border-emerald-200 rounded-lg p-3 space-y-2.5">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 mt-0.5 accent-emerald-700"
+                    checked={loteCobertura}
+                    onChange={(e) => setLoteCobertura(e.target.checked)}
+                    data-testid="lote-cobertura-toggle"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-emerald-900">Modo cobertura rápida</p>
+                    <p className="text-[11px] text-emerald-800/90 mt-0.5">
+                      Pré-popula as 20 visitas de cada folha com os próximos imóveis pendentes do quarteirão.
+                    </p>
+                  </div>
+                </label>
+                {loteCobertura && (
+                  <div>
+                    <label className="block text-[10px] font-semibold text-emerald-900 uppercase tracking-wider mb-1">Quarteirão alvo</label>
+                    <select
+                      className="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      value={loteQt}
+                      onChange={(e) => setLoteQt(e.target.value)}
+                      data-testid="lote-qt-select"
+                    >
+                      <option value="">Selecione…</option>
+                      {loteQuarteiroes.map((q) => (
+                        <option key={q.quarteirao} value={q.quarteirao}>
+                          QT {q.quarteirao} — {q.soma_imoveis} imóveis
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
               <button
                 disabled={loteCreating || !loteQty || parseInt(loteQty) < 1 || parseInt(loteQty) > 20}
                 onClick={async () => {
                   const n = parseInt(loteQty);
                   if (!n || n < 1 || n > 20) return;
+                  if (loteCobertura && !loteQt) {
+                    alert("Escolha o quarteirão para o modo cobertura.");
+                    return;
+                  }
                   setLoteCreating(true);
                   try {
                     // Pega seed do último formulário (apenas cabeçalho)
@@ -680,16 +730,60 @@ const Dashboard = () => {
                         };
                       } catch {}
                     }
+                    // Se cobertura: busca imóveis pendentes do QT
+                    let pendingPool = [];
+                    if (loteCobertura) {
+                      try {
+                        const [imoveisQt, visitedResp] = await Promise.all([
+                          catalogApi.imoveis({ quarteirao: loteQt }),
+                          catalogApi.visited().catch(() => ({ keys: [] })),
+                        ]);
+                        const visited = new Set(visitedResp.keys || []);
+                        const pending = imoveisQt
+                          .filter((im) => !visited.has(imovelKey(im)))
+                          .sort((a, b) => {
+                            const la = Number(a.lado) || 0;
+                            const lb = Number(b.lado) || 0;
+                            if (la !== lb) return la - lb;
+                            return (Number(a.seq) || 0) - (Number(b.seq) || 0);
+                          });
+                        pendingPool = pending;
+                      } catch (err) {
+                        alert("Erro ao buscar imóveis do quarteirão: " + (err?.message || ""));
+                        setLoteCreating(false);
+                        return;
+                      }
+                    }
                     // Cria N formulários sequencialmente
                     const created = [];
                     for (let i = 1; i <= n; i++) {
+                      const visits = Array.from({ length: 20 }, (_, vi) => {
+                        if (!loteCobertura) return {};
+                        const idx = (i - 1) * 20 + vi;
+                        const im = pendingPool[idx];
+                        if (!im) return {};
+                        return {
+                          quarteirao: im.quarteirao || "",
+                          lado: im.lado || "",
+                          logradouro: im.logradouro || "",
+                          numero: im.numero || "",
+                          seq: im.seq || "",
+                          tipo_imovel: im.tipo_imovel || "",
+                          visita_n: "",
+                          imovel_com_foco: false,
+                          imovel_tratado: false,
+                          larvicida: "",
+                          larvicida_quantidade: "",
+                          qtde_dep_tratados: "",
+                        };
+                      });
                       const payload = {
                         ...seedBase,
                         folha: `${i}/${n}`,
                         data_atividade: "",
-                        quarteiroes_trabalhados: "",
+                        quarteiroes_trabalhados: loteCobertura ? loteQt : "",
                         quarteiroes_concluidos: "",
-                        visits: Array.from({ length: 20 }, () => ({})),
+                        visits,
                       };
                       // eslint-disable-next-line no-await-in-loop
                       const f = await formsApi.create(payload);
@@ -697,8 +791,9 @@ const Dashboard = () => {
                     }
                     setLoteOpen(false);
                     setLoteCreating(false);
+                    setLoteCobertura(false);
+                    setLoteQt("");
                     await load();
-                    // Navega para a 1ª folha
                     if (created[0]?.id) navigate(`/form/${created[0].id}`);
                   } catch (e) {
                     setLoteCreating(false);
