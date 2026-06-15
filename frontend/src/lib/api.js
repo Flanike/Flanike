@@ -155,6 +155,7 @@ export const catalogApi = {
 
 export const statsApi = {
   weekly: () => api.get("/forms/stats/weekly").then((r) => r.data),
+  fechadas: () => api.get("/forms/stats/fechadas").then((r) => r.data),
 };
 
 // Sync automático quando voltar a ficar online

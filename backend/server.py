@@ -549,6 +549,73 @@ async def stats_weekly():
     return {"weeks": result, "total": total}
 
 
+@api_router.get("/forms/stats/fechadas")
+async def stats_fechadas():
+    """Relatório de Casas Fechadas — todas as visitas com pendencia='F'.
+
+    Retorna a lista detalhada (form_id, folha, data, qt, lado, logradouro,
+    número, tipo_imovel) ordenada por data desc, agrupamentos por quarteirão e
+    totalizadores úteis para o agente retornar depois.
+    """
+    forms = await db.d1_forms.find({}, {"_id": 0}).to_list(5000)
+    items: list[dict] = []
+    by_qt: dict[str, int] = {}
+    by_logradouro: dict[str, int] = {}
+    by_week: dict[str, int] = {}
+
+    def week_key(date_str: str):
+        if not date_str:
+            return ""
+        try:
+            d = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return ""
+        iso_year, iso_week, _ = d.isocalendar()
+        return f"{iso_year}-W{iso_week:02d}"
+
+    for f in forms:
+        d = f.get("data_atividade") or ""
+        wk = week_key(d)
+        for idx, v in enumerate(f.get("visits") or []):
+            if (v.get("pendencia") or "").strip() != "F":
+                continue
+            log = (v.get("logradouro") or "").strip()
+            num = (v.get("numero") or "").strip() if isinstance(v.get("numero"), str) else str(v.get("numero") or "")
+            if not (log or num):
+                continue
+            qt = (v.get("quarteirao") or "").strip()
+            items.append({
+                "form_id": f.get("id"),
+                "folha": f.get("folha") or "",
+                "data_atividade": d,
+                "municipio": f.get("municipio") or "",
+                "localidade": f.get("localidade") or "",
+                "quarteirao": qt,
+                "lado": v.get("lado") or "",
+                "logradouro": log,
+                "numero": num,
+                "tipo_imovel": v.get("tipo_imovel") or "",
+                "visita_n": v.get("visita_n") or "",
+                "visit_index": idx,
+            })
+            if qt:
+                by_qt[qt] = by_qt.get(qt, 0) + 1
+            if log:
+                by_logradouro[log] = by_logradouro.get(log, 0) + 1
+            if wk:
+                by_week[wk] = by_week.get(wk, 0) + 1
+
+    items.sort(key=lambda x: (x["data_atividade"] or "", x["quarteirao"], x["logradouro"], x["numero"]), reverse=True)
+
+    return {
+        "items": items,
+        "total": len(items),
+        "by_quarteirao": [{"quarteirao": k, "count": v} for k, v in sorted(by_qt.items(), key=lambda x: int(x[0]) if x[0].isdigit() else 0)],
+        "by_logradouro": [{"logradouro": k, "count": v} for k, v in sorted(by_logradouro.items(), key=lambda x: -x[1])][:20],
+        "by_week": [{"week": k, "count": v} for k, v in sorted(by_week.items())],
+    }
+
+
 app.include_router(api_router)
 
 app.add_middleware(
