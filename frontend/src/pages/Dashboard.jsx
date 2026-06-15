@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff, DownloadCloud, CheckCircle2, BarChart3, Copy, Eraser } from "lucide-react";
+import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff, DownloadCloud, CheckCircle2, BarChart3, Copy, Eraser, AlertTriangle, CalendarClock } from "lucide-react";
 import { formsApi, catalogApi, trySync } from "@/lib/api";
 import { ATIVIDADES, imovelKey } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
@@ -15,6 +15,9 @@ const Dashboard = () => {
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [catalogStats, setCatalogStats] = useState({ imoveis: 0, quarteiroes: 0 });
   const [cycleProgress, setCycleProgress] = useState({ concluidos: 0, total: 0, imoveisVisitados: 0, imoveisTotal: 0 });
+  const [cycleDeadline, setCycleDeadline] = useState(() => {
+    try { return localStorage.getItem("pncd_cycle_deadline") || ""; } catch { return ""; }
+  });
   const [syncState, setSyncState] = useState({
     queueSize: getQueue().length,
     localForms: getLocalForms(),
@@ -205,19 +208,42 @@ const Dashboard = () => {
 
       {/* Cycle Progress Ring */}
       <div className="px-5 mt-5" data-testid="cycle-ring-card">
-        <button
-          onClick={() => navigate("/resumo")}
-          className="w-full bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900 hover:from-slate-800 active:from-slate-950 rounded-2xl border border-blue-950 shadow-lg p-5 flex items-center gap-5 transition-colors text-left"
-        >
-          {(() => {
-            const total = cycleProgress.total || 0;
-            const done = cycleProgress.concluidos || 0;
-            const pct = total > 0 ? (done / total) * 100 : 0;
-            const r = 36;
-            const C = 2 * Math.PI * r;
-            const off = C - (Math.min(100, pct) / 100) * C;
-            return (
-              <>
+        {(() => {
+          const total = cycleProgress.total || 0;
+          const done = cycleProgress.concluidos || 0;
+          const pending = Math.max(0, total - done);
+          const pct = total > 0 ? (done / total) * 100 : 0;
+          const r = 36;
+          const C = 2 * Math.PI * r;
+          const off = C - (Math.min(100, pct) / 100) * C;
+
+          // Calcula dias restantes até o prazo
+          let daysLeft = null;
+          if (cycleDeadline) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dl = new Date(cycleDeadline + "T00:00:00");
+            daysLeft = Math.ceil((dl.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          }
+          const urgent = daysLeft !== null && daysLeft <= 7 && pending > 0;
+          const expired = daysLeft !== null && daysLeft < 0;
+
+          const wrapBg = urgent
+            ? "from-amber-700 via-amber-800 to-orange-900 border-amber-700 animate-pulse"
+            : "from-slate-900 via-blue-950 to-blue-900 border-blue-950";
+          const ringStops = urgent
+            ? ["#fbbf24", "#f59e0b"]
+            : ["#34d399", "#10b981"];
+          const subTxt = urgent ? "text-amber-100/90" : "text-emerald-200/90";
+          const dividerTxt = urgent ? "text-amber-100/70" : "text-emerald-200/70";
+          const pctTxt = urgent ? "text-white" : "text-white";
+
+          return (
+            <>
+              <button
+                onClick={() => navigate("/resumo")}
+                className={`w-full bg-gradient-to-br ${wrapBg} hover:brightness-110 active:brightness-95 rounded-2xl border shadow-lg p-5 flex items-center gap-5 transition-all text-left`}
+              >
                 <div className="relative shrink-0" data-testid="cycle-ring">
                   <svg width="92" height="92" viewBox="0 0 92 92" className="-rotate-90">
                     <circle cx="46" cy="46" r={r} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="8" />
@@ -231,34 +257,77 @@ const Dashboard = () => {
                     />
                     <defs>
                       <linearGradient id="cycleGrad" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#34d399" />
-                        <stop offset="100%" stopColor="#10b981" />
+                        <stop offset="0%" stopColor={ringStops[0]} />
+                        <stop offset="100%" stopColor={ringStops[1]} />
                       </linearGradient>
                     </defs>
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-lg font-semibold text-white font-display tabular-nums">
+                    <span className={`text-lg font-semibold ${pctTxt} font-display tabular-nums`}>
                       {pct.toFixed(0)}%
                     </span>
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-emerald-200/90 uppercase tracking-widest font-semibold">Ciclo atual</p>
+                  <p className={`text-[10px] ${subTxt} uppercase tracking-widest font-semibold`}>Ciclo atual</p>
                   <p className="text-2xl font-semibold text-white font-display leading-tight">
                     <span className="tabular-nums" data-testid="cycle-done">{done}</span>
-                    <span className="text-emerald-200/70 mx-1.5">/</span>
+                    <span className={`${dividerTxt} mx-1.5`}>/</span>
                     <span className="tabular-nums" data-testid="cycle-total">{total}</span>
-                    <span className="text-sm text-emerald-100/80 font-normal ml-2">QT concluídos</span>
+                    <span className="text-sm text-white/85 font-normal ml-2">QT concluídos</span>
                   </p>
-                  <p className="text-[11px] text-blue-200/80 mt-1">
+                  <p className={`text-[11px] ${urgent ? "text-amber-100/90" : "text-blue-200/80"} mt-1`}>
                     {cycleProgress.imoveisVisitados} de {cycleProgress.imoveisTotal} imóveis visitados
                   </p>
+                  {urgent && (
+                    <p className="text-[11px] text-amber-50 font-semibold mt-1.5 flex items-center gap-1" data-testid="cycle-urgent">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      {expired ? `Prazo vencido — ${pending} QT pendente${pending !== 1 ? "s" : ""}` : `${daysLeft}d restante${daysLeft !== 1 ? "s" : ""} · ${pending} QT pendente${pending !== 1 ? "s" : ""}`}
+                    </p>
+                  )}
+                  {!urgent && daysLeft !== null && (
+                    <p className="text-[11px] text-blue-200/80 mt-1" data-testid="cycle-deadline-info">
+                      Prazo: {daysLeft >= 0 ? `${daysLeft}d restantes` : "vencido"}
+                    </p>
+                  )}
                 </div>
-                <Target className="w-5 h-5 text-emerald-300/80 shrink-0" />
-              </>
-            );
-          })()}
-        </button>
+                <Target className={`w-5 h-5 ${urgent ? "text-amber-200" : "text-emerald-300/80"} shrink-0`} />
+              </button>
+              <div className="mt-2 flex items-center gap-2">
+                <CalendarClock className="w-3.5 h-3.5 text-slate-500" />
+                <label className="text-[11px] text-slate-600">
+                  Prazo do ciclo:
+                  <input
+                    type="date"
+                    className="ml-1.5 text-[11px] border border-slate-200 rounded px-1.5 py-0.5 bg-white text-slate-800"
+                    value={cycleDeadline}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCycleDeadline(val);
+                      try {
+                        if (val) localStorage.setItem("pncd_cycle_deadline", val);
+                        else localStorage.removeItem("pncd_cycle_deadline");
+                      } catch {}
+                    }}
+                    data-testid="cycle-deadline-input"
+                  />
+                </label>
+                {cycleDeadline && (
+                  <button
+                    onClick={() => {
+                      setCycleDeadline("");
+                      try { localStorage.removeItem("pncd_cycle_deadline"); } catch {}
+                    }}
+                    className="text-[11px] text-slate-400 hover:text-rose-600 underline"
+                    data-testid="cycle-deadline-clear"
+                  >
+                    limpar
+                  </button>
+                )}
+              </div>
+            </>
+          );
+        })()}
       </div>
 
       {/* Stats */}
