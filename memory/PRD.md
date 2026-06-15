@@ -6,7 +6,8 @@
 3. PWA + Visitados + Limpeza Depósitos
 4. Sync queue + Pré-cache QT + Resumo + Imprimir D1
 5. Pré-cache total (988 imóveis offline) + ajustes dropdowns
-6. **Resumo Semanal + Editar Cadastro (CRUD imóveis)**
+6. Resumo Semanal + Editar Cadastro (CRUD imóveis)
+7. **Quick Actions Dashboard + Filtro por Lado (Fev/2026)**
 
 ## Persona
 **Agente de Endemias (ACE)** em Santa Cruz/RN — em campo, no celular, sem internet, gerencia formulários, catálogo de imóveis e acompanha estatísticas.
@@ -33,6 +34,16 @@
   - Refresh automático dos totais agregados em `quarteiroes` após cada mutação (e remoção de QT órfãos)
 
 ## Status (Janeiro/2026)
+### ✅ Iteração 7 — Quick Actions + Filtro Lado (Fev/2026)
+- **Dashboard quick actions** (`Dashboard.jsx`):
+  - "Duplicar último" — clona cabeçalho + lista de imóveis das 20 visitas do último formulário (sem dados de visita: zera visita_n, foco, tratado, larvicida)
+  - "Limpar formulário" — descarta rascunho local e navega para `/form/new?fresh=1`
+- **FormEditor — botão Limpar no header** (ícone borracha): reseta todos os campos para vazio com confirmação
+- **Filtro por Lado** (`Catalogo.jsx` e `ImovelPicker.jsx`):
+  - Botões "Todos" + 1-10 conforme lados disponíveis no quarteirão selecionado
+  - Reseta automaticamente ao trocar de quarteirão
+- **Testado** via testing_agent (iteration_8.json): ~95% — todas as features OK
+
 ### ✅ Iteração 6 — Resumo Semanal + Editar Cadastro
 - **`/semanal`**: hero "Acumulado" + gráfico de barras por semana + tabela detalhada estilo aba RESUMO (QT Conc, Inform, Trab, Pend, Recup, Focos)
 - **CRUD do Cadastro**:
