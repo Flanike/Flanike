@@ -94,7 +94,7 @@ const VisitModal = ({ open, index, visit, onChange, onClose }) => {
           </div>
 
           <Field label="Nº Depósitos Eliminados">
-            <input type="number" inputMode="numeric" className={inputCls} value={visit.depositos_eliminados} onChange={(e) => set("depositos_eliminados", e.target.value)} data-testid="visit-dep-eliminados" />
+            <input type="number" inputMode="numeric" className={inputCls} value={visit.depositos_eliminados ?? ""} onChange={(e) => set("depositos_eliminados", e.target.value)} data-testid="visit-dep-eliminados" />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
@@ -117,10 +117,10 @@ const VisitModal = ({ open, index, visit, onChange, onClose }) => {
                 </select>
               </Field>
               <Field label="Quant. (g)">
-                <input type="number" inputMode="decimal" step="0.01" className={inputCls} value={visit.larvicida_quantidade} onChange={(e) => set("larvicida_quantidade", e.target.value)} data-testid="visit-larv-qtd" />
+                <input type="number" inputMode="decimal" step="0.01" className={inputCls} value={visit.larvicida_quantidade ?? ""} onChange={(e) => set("larvicida_quantidade", e.target.value)} data-testid="visit-larv-qtd" />
               </Field>
               <Field label="Qtd. Dep. Trat.">
-                <input type="number" inputMode="numeric" className={inputCls} value={visit.qtde_dep_tratados} onChange={(e) => set("qtde_dep_tratados", e.target.value)} data-testid="visit-dep-trat" />
+                <input type="number" inputMode="numeric" className={inputCls} value={visit.qtde_dep_tratados ?? ""} onChange={(e) => set("qtde_dep_tratados", e.target.value)} data-testid="visit-dep-trat" />
               </Field>
             </div>
           </div>

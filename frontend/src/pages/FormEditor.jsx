@@ -264,10 +264,10 @@ const FormEditor = () => {
               </select>
             </Field>
             <Field label="Quant. (g)">
-              <input type="number" inputMode="decimal" step="0.01" className={inputCls} value={form.depositos_tratados.quantidade} onChange={(e) => set("depositos_tratados", { ...form.depositos_tratados, quantidade: e.target.value })} data-testid="dep-trat-qtd" />
+              <input type="number" inputMode="decimal" step="0.01" className={inputCls} value={form.depositos_tratados.quantidade ?? ""} onChange={(e) => set("depositos_tratados", { ...form.depositos_tratados, quantidade: e.target.value })} data-testid="dep-trat-qtd" />
             </Field>
             <Field label="Dep. Trat.">
-              <input type="number" inputMode="numeric" className={inputCls} value={form.depositos_tratados.qtde_dep_trat} onChange={(e) => set("depositos_tratados", { ...form.depositos_tratados, qtde_dep_trat: e.target.value })} data-testid="dep-trat-num" />
+              <input type="number" inputMode="numeric" className={inputCls} value={form.depositos_tratados.qtde_dep_trat ?? ""} onChange={(e) => set("depositos_tratados", { ...form.depositos_tratados, qtde_dep_trat: e.target.value })} data-testid="dep-trat-num" />
             </Field>
           </div>
         </SectionCard>
