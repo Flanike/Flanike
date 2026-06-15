@@ -136,10 +136,14 @@ const Semanal = () => {
                       <th className="px-3 py-2 text-right font-semibold text-slate-700 uppercase tracking-wider">Pend.</th>
                       <th className="px-3 py-2 text-right font-semibold text-slate-700 uppercase tracking-wider">Recup.</th>
                       <th className="px-3 py-2 text-right font-semibold text-slate-700 uppercase tracking-wider">Focos</th>
+                      <th className="px-3 py-2 text-right font-semibold text-slate-700 uppercase tracking-wider">IIP</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.weeks.map((w) => (
+                    {data.weeks.map((w) => {
+                      const iip = w.trabalhados > 0 ? (w.focos * 100) / w.trabalhados : 0;
+                      const iipCls = iip >= 4 ? "text-rose-700" : iip >= 1 ? "text-amber-700" : "text-emerald-700";
+                      return (
                       <tr key={w.week} className="border-b border-slate-50" data-testid={`week-row-${w.week}`}>
                         <td className="px-3 py-2 font-medium text-slate-900">
                           {w.week}
@@ -151,17 +155,27 @@ const Semanal = () => {
                         <td className="px-3 py-2 text-right tabular-nums">{w.pendentes}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{w.recuperados}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{w.focos}</td>
+                        <td className={`px-3 py-2 text-right tabular-nums font-semibold ${iipCls}`} data-testid={`week-iip-${w.week}`}>
+                          {iip.toFixed(2)}%
+                        </td>
                       </tr>
-                    ))}
-                    <tr className="bg-blue-50 font-semibold text-blue-900" data-testid="week-total">
-                      <td className="px-3 py-2">TOTAL</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{data.total.quarteiroes_concluidos ?? 0}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{data.total.informados || 0}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{data.total.trabalhados || 0}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{data.total.pendentes || 0}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{data.total.recuperados || 0}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{data.total.focos || 0}</td>
-                    </tr>
+                    );})}
+                    {(() => {
+                      const totIIP = (data.total.trabalhados || 0) > 0 ? ((data.total.focos || 0) * 100) / data.total.trabalhados : 0;
+                      const tCls = totIIP >= 4 ? "text-rose-700" : totIIP >= 1 ? "text-amber-700" : "text-emerald-700";
+                      return (
+                        <tr className="bg-blue-50 font-semibold text-blue-900" data-testid="week-total">
+                          <td className="px-3 py-2">TOTAL</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{data.total.quarteiroes_concluidos ?? 0}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{data.total.informados || 0}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{data.total.trabalhados || 0}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{data.total.pendentes || 0}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{data.total.recuperados || 0}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{data.total.focos || 0}</td>
+                          <td className={`px-3 py-2 text-right tabular-nums ${tCls}`} data-testid="week-total-iip">{totIIP.toFixed(2)}%</td>
+                        </tr>
+                      );
+                    })()}
                   </tbody>
                 </table>
               </div>

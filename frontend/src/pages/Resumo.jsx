@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Target, TrendingUp, MapPin, CheckCircle2, Clock } from "lucide-react";
+import { ArrowLeft, Target, TrendingUp, MapPin, CheckCircle2, Clock, Bug } from "lucide-react";
 import { catalogApi, formsApi } from "@/lib/api";
 import { imovelKey } from "@/constants/d1";
 
@@ -32,16 +32,39 @@ const Resumo = () => {
     const byQt = {};
     imoveis.forEach((im) => {
       const k = im.quarteirao;
-      if (!byQt[k]) byQt[k] = { total: 0, visitados: 0, lados: new Set() };
+      if (!byQt[k]) byQt[k] = { total: 0, visitados: 0, lados: new Set(), focos: 0, trabalhados: 0 };
       byQt[k].total += 1;
       byQt[k].lados.add(im.lado);
       if (visitedSet.has(imovelKey(im))) byQt[k].visitados += 1;
     });
 
+    // Acumula focos e trabalhados por QT a partir das visitas
+    let totalFocos = 0;
+    let totalTrabalhados = 0;
+    forms.forEach((f) => {
+      (f.visits || []).forEach((v) => {
+        const filled = Boolean((v.logradouro || "").toString().trim() || (v.numero || "") || (v.tipo_imovel || "").toString().trim());
+        if (!filled) return;
+        const qt = String(v.quarteirao || "").trim();
+        if (qt && !byQt[qt]) byQt[qt] = { total: 0, visitados: 0, lados: new Set(), focos: 0, trabalhados: 0 };
+        // Trabalhado = visita preenchida (tem tipo_visita ou preenchida)
+        const trab = Boolean((v.tipo_visita || "").toString().trim()) || filled;
+        if (trab) {
+          totalTrabalhados += 1;
+          if (qt) byQt[qt].trabalhados += 1;
+        }
+        if (v.imovel_com_foco) {
+          totalFocos += 1;
+          if (qt) byQt[qt].focos += 1;
+        }
+      });
+    });
+
     const rows = quarteiroes
       .map((q) => {
-        const data = byQt[q.quarteirao] || { total: q.soma_imoveis || 0, visitados: 0 };
+        const data = byQt[q.quarteirao] || { total: q.soma_imoveis || 0, visitados: 0, focos: 0, trabalhados: 0 };
         const pct = data.total > 0 ? (data.visitados / data.total) * 100 : 0;
+        const iip = data.trabalhados > 0 ? (data.focos * 100) / data.trabalhados : 0;
         return {
           quarteirao: q.quarteirao,
           total: data.total,
@@ -49,6 +72,9 @@ const Resumo = () => {
           pendentes: data.total - data.visitados,
           pct,
           habitantes: q.habitantes,
+          focos: data.focos || 0,
+          trabalhados: data.trabalhados || 0,
+          iip,
           status:
             pct >= 100 ? "concluido" : pct > 0 ? "andamento" : "nao_iniciado",
         };
@@ -62,6 +88,7 @@ const Resumo = () => {
     const andamento = rows.filter((r) => r.status === "andamento").length;
     const naoIniciados = rows.filter((r) => r.status === "nao_iniciado").length;
     const pctGeral = totalImoveis > 0 ? (totalVisitados / totalImoveis) * 100 : 0;
+    const iipGeral = totalTrabalhados > 0 ? (totalFocos * 100) / totalTrabalhados : 0;
 
     return {
       rows,
@@ -73,6 +100,9 @@ const Resumo = () => {
       naoIniciados,
       pctGeral,
       totalForms: forms.length,
+      totalFocos,
+      totalTrabalhados,
+      iipGeral,
     };
   }, [imoveis, quarteiroes, visitedSet, forms]);
 
@@ -116,6 +146,49 @@ const Resumo = () => {
             />
           </div>
         </section>
+
+        {/* IIP — Índice de Infestação Predial */}
+        {(() => {
+          const iip = stats.iipGeral || 0;
+          // Classificação PNCD: <1% satisfatório · 1-3.9% alerta · ≥4% risco
+          const cls = iip >= 4
+            ? { label: "Risco", text: "text-rose-700", bg: "bg-rose-50", border: "border-rose-200", bar: "from-rose-400 to-red-600", dot: "bg-rose-500" }
+            : iip >= 1
+            ? { label: "Alerta", text: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200", bar: "from-amber-400 to-orange-500", dot: "bg-amber-500" }
+            : { label: "Satisfatório", text: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200", bar: "from-emerald-400 to-green-600", dot: "bg-emerald-500" };
+          return (
+            <section className={`${cls.bg} rounded-2xl border ${cls.border} p-5 shadow-sm`} data-testid="iip-card">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className={`text-[10px] ${cls.text} uppercase tracking-widest font-semibold`}>IIP — Infestação Predial</p>
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase ${cls.text}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${cls.dot}`} />
+                      {cls.label}
+                    </span>
+                  </div>
+                  <p className={`text-4xl font-semibold ${cls.text} font-display mt-1 tabular-nums`} data-testid="iip-value">
+                    {iip.toFixed(2)}<span className="text-2xl">%</span>
+                  </p>
+                  <p className="text-xs text-slate-600 mt-1">
+                    <span className="font-semibold tabular-nums" data-testid="iip-focos">{stats.totalFocos}</span> focos / <span className="font-semibold tabular-nums" data-testid="iip-trabalhados">{stats.totalTrabalhados}</span> imóveis trabalhados
+                  </p>
+                </div>
+                <Bug className={`w-7 h-7 ${cls.text} shrink-0`} />
+              </div>
+              <div className="mt-3 h-2 bg-white/60 rounded-full overflow-hidden">
+                <div
+                  className={`h-full bg-gradient-to-r ${cls.bar} transition-all duration-700`}
+                  style={{ width: `${Math.min(100, Math.max(2, iip * 10))}%` }}
+                  data-testid="iip-bar"
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 mt-2 leading-snug">
+                Regra PNCD: &lt;1% satisfatório · 1-3,9% alerta · ≥4% risco
+              </p>
+            </section>
+          );
+        })()}
 
         {/* Quarteirão counts */}
         <section className="grid grid-cols-3 gap-3">
@@ -162,6 +235,21 @@ const Resumo = () => {
                       <span className="text-sm text-slate-700">
                         {r.visitados}/{r.total}
                       </span>
+                      {r.trabalhados > 0 && (
+                        <span
+                          className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                            r.iip >= 4
+                              ? "bg-rose-50 text-rose-700 border border-rose-200"
+                              : r.iip >= 1
+                              ? "bg-amber-50 text-amber-700 border border-amber-200"
+                              : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          }`}
+                          data-testid={`qt-iip-${r.quarteirao}`}
+                          title={`${r.focos} focos / ${r.trabalhados} trabalhados`}
+                        >
+                          IIP {r.iip.toFixed(1)}%
+                        </span>
+                      )}
                     </div>
                     <span
                       className={`text-xs font-semibold ${
