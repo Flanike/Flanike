@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff, DownloadCloud, CheckCircle2, BarChart3, Copy, Eraser, AlertTriangle, CalendarClock } from "lucide-react";
+import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff, DownloadCloud, CheckCircle2, BarChart3, Copy, Eraser, AlertTriangle, CalendarClock, Bug } from "lucide-react";
 import { formsApi, catalogApi, trySync } from "@/lib/api";
 import { ATIVIDADES, imovelKey } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
@@ -475,7 +475,9 @@ const Dashboard = () => {
             {forms.map((f) => (
               <div
                 key={f.id}
-                className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+                className={`bg-white rounded-xl border shadow-sm overflow-hidden ${
+                  f.focos > 0 ? "border-amber-300 ring-1 ring-amber-200/50" : "border-slate-200"
+                }`}
                 data-testid={`form-card-${f.id}`}
               >
                 <button
@@ -485,12 +487,22 @@ const Dashboard = () => {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="code-pill">FOLHA {f.folha || "—"}</span>
                         <span className="text-xs text-slate-500">{formatDate(f.data_atividade)}</span>
                         {f._pending && (
                           <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
                             {f._pending === "create" ? "Aguardando envio" : "Edição pendente"}
+                          </span>
+                        )}
+                        {f.focos > 0 && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded"
+                            data-testid={`focos-badge-${f.id}`}
+                            title={`${f.focos} imóve${f.focos === 1 ? "l" : "is"} com foco encontrado${f.focos === 1 ? "" : "s"}`}
+                          >
+                            <Bug className="w-3 h-3" />
+                            {f.focos} {f.focos === 1 ? "foco" : "focos"}
                           </span>
                         )}
                       </div>

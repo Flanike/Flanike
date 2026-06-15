@@ -98,6 +98,7 @@ class D1FormSummary(BaseModel):
     atividade: str
     folha: str
     total_visitas: int
+    focos: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -180,6 +181,10 @@ def count_visits(visits: List[dict]) -> int:
     return count
 
 
+def count_focos(visits: List[dict]) -> int:
+    return sum(1 for v in visits if v.get('imovel_com_foco'))
+
+
 # ===== Routes =====
 @api_router.get("/")
 async def root():
@@ -200,6 +205,7 @@ async def list_forms():
             atividade=f.get('atividade', ''),
             folha=f.get('folha', ''),
             total_visitas=count_visits(f.get('visits', [])),
+            focos=count_focos(f.get('visits', [])),
             created_at=f['created_at'],
             updated_at=f['updated_at'],
         ))

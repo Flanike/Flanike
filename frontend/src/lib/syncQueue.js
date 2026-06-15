@@ -119,6 +119,7 @@ export const localFormsAsSummaries = () => {
     total_visitas: (f.visits || []).filter(
       (v) => v?.logradouro || v?.numero || v?.tipo_imovel
     ).length,
+    focos: (f.visits || []).filter((v) => v?.imovel_com_foco).length,
     created_at: f.created_at,
     updated_at: f.updated_at,
     _pending: f._pending,
