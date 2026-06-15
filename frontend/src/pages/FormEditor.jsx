@@ -43,6 +43,7 @@ const FormEditor = () => {
   const [toast, setToast] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const [nextSibling, setNextSibling] = useState(null);
   const online = useOnline();
   const draftKey = isNew ? "pncd_d1_draft_new" : `pncd_d1_draft_${id}`;
 
@@ -158,6 +159,29 @@ const FormEditor = () => {
       visits[idx] = newVisit;
       return { ...f, visits };
     });
+
+  // Detecta próxima folha sibling (mesmo total, atual+1) em formulários existentes
+  useEffect(() => {
+    if (isNew || !form.folha) {
+      setNextSibling(null);
+      return;
+    }
+    const [a, t] = form.folha.split("/").map((s) => parseInt(s, 10));
+    if (Number.isNaN(a)) return;
+    const targetA = a + 1;
+    if (Number.isNaN(t) || targetA > t) {
+      setNextSibling(null);
+      return;
+    }
+    const targetFolha = `${targetA}/${t}`;
+    formsApi
+      .list()
+      .then((list) => {
+        const match = list.find((f) => f.folha === targetFolha && f.id !== id);
+        setNextSibling(match || null);
+      })
+      .catch(() => setNextSibling(null));
+  }, [id, isNew, form.folha]);
 
   // Autosave do rascunho em localStorage (proteção contra perda de dados em campo)
   useEffect(() => {
@@ -487,16 +511,37 @@ const FormEditor = () => {
 
       {/* Save bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-3 z-30">
-        <div className="max-w-[640px] mx-auto">
+        <div className="max-w-[640px] mx-auto flex gap-2">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-blue-800 hover:bg-blue-900 disabled:bg-blue-400 text-white font-medium rounded-xl px-6 py-3.5 flex items-center justify-center gap-2 transition-colors"
+            className="flex-1 bg-blue-800 hover:bg-blue-900 disabled:bg-blue-400 text-white font-medium rounded-xl px-6 py-3.5 flex items-center justify-center gap-2 transition-colors"
             data-testid="save-btn"
           >
             <Save className="w-5 h-5" />
             {saving ? "Salvando…" : isNew ? "Salvar Formulário" : "Salvar Alterações"}
           </button>
+          {nextSibling && (
+            <button
+              onClick={async () => {
+                if (saving) return;
+                try {
+                  await handleSave();
+                  navigate(`/form/${nextSibling.id}`);
+                } catch {}
+              }}
+              disabled={saving}
+              className="bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-400 text-white font-medium rounded-xl px-4 py-3.5 flex items-center justify-center gap-1.5 transition-colors shrink-0"
+              data-testid="next-folha-btn"
+              title={`Salvar e ir para a folha ${nextSibling.folha}`}
+            >
+              <span className="text-xs leading-tight text-left">
+                <span className="block opacity-80">Próxima</span>
+                <span className="block font-semibold">{nextSibling.folha}</span>
+              </span>
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 

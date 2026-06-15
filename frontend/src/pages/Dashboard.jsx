@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff, DownloadCloud, CheckCircle2, BarChart3, Copy, Eraser, AlertTriangle, CalendarClock, Bug, DoorClosed } from "lucide-react";
+import { Plus, FileText, Trash2, Download, Edit3, ClipboardList, Database, WifiOff, Target, Printer, CloudOff, DownloadCloud, CheckCircle2, BarChart3, Copy, Eraser, AlertTriangle, CalendarClock, Bug, DoorClosed, Layers, X } from "lucide-react";
 import { formsApi, catalogApi, trySync } from "@/lib/api";
 import { ATIVIDADES, imovelKey } from "@/constants/d1";
 import { exportCSV, exportPDF } from "@/lib/export";
@@ -18,6 +18,9 @@ const Dashboard = () => {
   const [cycleDeadline, setCycleDeadline] = useState(() => {
     try { return localStorage.getItem("pncd_cycle_deadline") || ""; } catch { return ""; }
   });
+  const [loteOpen, setLoteOpen] = useState(false);
+  const [loteQty, setLoteQty] = useState("3");
+  const [loteCreating, setLoteCreating] = useState(false);
   const [syncState, setSyncState] = useState({
     queueSize: getQueue().length,
     localForms: getLocalForms(),
@@ -384,7 +387,7 @@ const Dashboard = () => {
       </div>
 
       {/* Quick actions */}
-      <div className="px-5 mt-4 grid grid-cols-2 gap-3" data-testid="quick-actions">
+      <div className="px-5 mt-4 grid grid-cols-3 gap-2" data-testid="quick-actions">
         <button
           onClick={async () => {
             if (!forms.length) return;
@@ -405,13 +408,24 @@ const Dashboard = () => {
                 larvicida_quantidade: "",
                 qtde_dep_tratados: "",
               }));
+              // Auto-incrementa a folha: "1/2" -> "2/2", "2/2" -> "3/3"
+              const nextFolha = (() => {
+                const cur = (last.folha || "").trim();
+                if (!cur) return "";
+                const [a, t] = cur.split("/").map((s) => parseInt(s, 10));
+                if (Number.isNaN(a)) return cur;
+                const nextA = a + 1;
+                if (Number.isNaN(t)) return String(nextA);
+                const nextT = nextA > t ? nextA : t;
+                return `${nextA}/${nextT}`;
+              })();
               const seed = {
                 municipio: last.municipio || "",
                 localidade: last.localidade || "",
                 categoria: last.categoria || "",
                 zona: last.zona || "",
                 tipo: last.tipo || "",
-                folha: last.folha || "",
+                folha: nextFolha,
                 atividade: last.atividade || "",
                 quarteiroes_trabalhados: last.quarteiroes_trabalhados || "",
                 quarteiroes_concluidos: last.quarteiroes_concluidos || "",
@@ -426,15 +440,28 @@ const Dashboard = () => {
             }
           }}
           disabled={!forms.length}
-          className="bg-white hover:bg-slate-50 active:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl border border-slate-200 p-3 shadow-sm flex items-center gap-2 transition-colors"
+          className="bg-white hover:bg-slate-50 active:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl border border-slate-200 p-3 shadow-sm flex flex-col items-start gap-1.5 transition-colors text-left min-w-0"
           data-testid="duplicate-last-btn"
         >
-          <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
             <Copy className="w-4 h-4 text-emerald-700" />
           </div>
-          <div className="text-left min-w-0">
-            <p className="text-sm font-semibold text-slate-900 truncate">Duplicar último</p>
-            <p className="text-[11px] text-slate-500 truncate">Cabeçalho + imóveis</p>
+          <div className="min-w-0 w-full">
+            <p className="text-xs font-semibold text-slate-900 leading-tight">Duplicar</p>
+            <p className="text-[10px] text-slate-500 leading-tight">último</p>
+          </div>
+        </button>
+        <button
+          onClick={() => setLoteOpen(true)}
+          className="bg-white hover:bg-slate-50 active:bg-slate-100 rounded-xl border border-slate-200 p-3 shadow-sm flex flex-col items-start gap-1.5 transition-colors text-left min-w-0"
+          data-testid="lote-folhas-btn"
+        >
+          <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0">
+            <Layers className="w-4 h-4 text-blue-700" />
+          </div>
+          <div className="min-w-0 w-full">
+            <p className="text-xs font-semibold text-slate-900 leading-tight">Lote</p>
+            <p className="text-[10px] text-slate-500 leading-tight">de folhas</p>
           </div>
         </button>
         <button
@@ -446,15 +473,15 @@ const Dashboard = () => {
             } catch {}
             navigate("/form/new?fresh=1");
           }}
-          className="bg-white hover:bg-slate-50 active:bg-slate-100 rounded-xl border border-slate-200 p-3 shadow-sm flex items-center gap-2 transition-colors"
+          className="bg-white hover:bg-slate-50 active:bg-slate-100 rounded-xl border border-slate-200 p-3 shadow-sm flex flex-col items-start gap-1.5 transition-colors text-left min-w-0"
           data-testid="clear-form-btn"
         >
-          <div className="w-9 h-9 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center shrink-0">
             <Eraser className="w-4 h-4 text-rose-700" />
           </div>
-          <div className="text-left min-w-0">
-            <p className="text-sm font-semibold text-slate-900 truncate">Limpar formulário</p>
-            <p className="text-[11px] text-slate-500 truncate">Começar em branco</p>
+          <div className="min-w-0 w-full">
+            <p className="text-xs font-semibold text-slate-900 leading-tight">Limpar</p>
+            <p className="text-[10px] text-slate-500 leading-tight">em branco</p>
           </div>
         </button>
       </div>
@@ -595,6 +622,104 @@ const Dashboard = () => {
         <Plus className="w-5 h-5" />
         Novo Formulário
       </button>
+
+      {/* Modal Lote de Folhas */}
+      {loteOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-5" data-testid="lote-modal">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0">
+                <Layers className="w-5 h-5 text-blue-700" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-semibold text-slate-900 font-display">Lote de Folhas</h2>
+                <p className="text-xs text-slate-500">Crie várias folhas de uma vez</p>
+              </div>
+              <button onClick={() => setLoteOpen(false)} className="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center" data-testid="lote-close">
+                <X className="w-5 h-5 text-slate-700" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Quantidade de folhas</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={2}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-2xl text-center font-display font-semibold text-slate-900 focus:border-blue-800 focus:outline-none"
+                  value={loteQty}
+                  onChange={(e) => setLoteQty(e.target.value.replace(/[^0-9]/g, ""))}
+                  data-testid="lote-qty-input"
+                />
+                <p className="text-[11px] text-slate-500 mt-1.5">
+                  Serão criadas {loteQty || "0"} folha{loteQty === "1" ? "" : "s"} sequenciais
+                  {loteQty && parseInt(loteQty) > 0 && parseInt(loteQty) <= 20 && (
+                    <> (1/{loteQty}, 2/{loteQty}…{loteQty}/{loteQty})</>
+                  )}
+                </p>
+              </div>
+              {forms.length > 0 && (
+                <div className="bg-blue-50/60 border border-blue-200 rounded-lg p-3 text-xs text-blue-900">
+                  Cabeçalho (município, localidade, zona) será copiado do <strong>último formulário</strong>.
+                </div>
+              )}
+              <button
+                disabled={loteCreating || !loteQty || parseInt(loteQty) < 1 || parseInt(loteQty) > 20}
+                onClick={async () => {
+                  const n = parseInt(loteQty);
+                  if (!n || n < 1 || n > 20) return;
+                  setLoteCreating(true);
+                  try {
+                    // Pega seed do último formulário (apenas cabeçalho)
+                    let seedBase = {};
+                    if (forms.length > 0) {
+                      try {
+                        const last = await formsApi.get(forms[0].id);
+                        seedBase = {
+                          municipio: last.municipio || "",
+                          localidade: last.localidade || "",
+                          categoria: last.categoria || "",
+                          zona: last.zona || "",
+                          tipo: last.tipo || "",
+                          atividade: last.atividade || "",
+                        };
+                      } catch {}
+                    }
+                    // Cria N formulários sequencialmente
+                    const created = [];
+                    for (let i = 1; i <= n; i++) {
+                      const payload = {
+                        ...seedBase,
+                        folha: `${i}/${n}`,
+                        data_atividade: "",
+                        quarteiroes_trabalhados: "",
+                        quarteiroes_concluidos: "",
+                        visits: Array.from({ length: 20 }, () => ({})),
+                      };
+                      // eslint-disable-next-line no-await-in-loop
+                      const f = await formsApi.create(payload);
+                      created.push(f);
+                    }
+                    setLoteOpen(false);
+                    setLoteCreating(false);
+                    await load();
+                    // Navega para a 1ª folha
+                    if (created[0]?.id) navigate(`/form/${created[0].id}`);
+                  } catch (e) {
+                    setLoteCreating(false);
+                    alert("Erro ao criar lote: " + (e?.message || ""));
+                  }
+                }}
+                className="w-full bg-blue-800 hover:bg-blue-900 active:bg-blue-950 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg px-4 py-3 flex items-center justify-center gap-2 transition-colors"
+                data-testid="lote-create-btn"
+              >
+                {loteCreating ? "Criando…" : `Criar ${loteQty || 0} folha${loteQty === "1" ? "" : "s"}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
