@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Printer, ArrowLeft, Download } from "lucide-react";
+import { Printer, ArrowLeft } from "lucide-react";
 import { formsApi } from "@/lib/api";
-import { ATIVIDADES, TIPOS_IMOVEL, visitIsFilled } from "@/constants/d1";
+import { visitIsFilled } from "@/constants/d1";
 
-// Layout do D1 oficial — usa CSS @media print para imprimir
+// Layout fiel ao D1 oficial (planilha mestre):
+// 32 colunas A..AF, 31 linhas. Reproduz merged cells via colspan/rowspan.
 const PrintD1 = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -12,65 +13,57 @@ const PrintD1 = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    formsApi
-      .get(id)
-      .then(setForm)
-      .catch(() => setForm(null))
-      .finally(() => setLoading(false));
+    formsApi.get(id).then(setForm).catch(() => setForm(null)).finally(() => setLoading(false));
   }, [id]);
 
   useEffect(() => {
-    // Inserir título da página para o save-as-PDF
     if (form) {
       const orig = document.title;
       document.title = `D1_${form.data_atividade || "form"}_${form.folha || ""}`;
-      return () => {
-        document.title = orig;
-      };
+      return () => { document.title = orig; };
     }
   }, [form]);
 
   if (loading) return <div className="p-10 text-center text-slate-500">Carregando…</div>;
   if (!form) return <div className="p-10 text-center text-red-600">Formulário não encontrado.</div>;
 
-  const ativObj = ATIVIDADES.find((a) => a.value === form.atividade);
-  const ativ = ativObj ? ativObj.label : form.atividade || "—";
+  // Garante 20 visitas
+  const visits = [...(form.visits || [])];
+  while (visits.length < 20) visits.push({});
+  const v20 = visits.slice(0, 20);
 
-  const totaisTipo = {};
-  TIPOS_IMOVEL.forEach((t) => {
-    totaisTipo[t.value] = form.visits.filter((v) => v.tipo_imovel === t.value).length;
+  // Totais por tipo
+  const tot = { R: 0, C: 0, TB: 0, PE: 0, O: 0 };
+  v20.forEach((vi) => {
+    if (vi.tipo_imovel && tot[vi.tipo_imovel] !== undefined) tot[vi.tipo_imovel] += 1;
   });
-  const totalImoveis = form.visits.filter(visitIsFilled).length;
-  const totalFocos = form.visits.filter((v) => v.imovel_com_foco).length;
-  const totalTratados = form.visits.filter((v) => v.imovel_tratado).length;
-  const totalDepEliminados = form.visits.reduce(
-    (a, v) => a + (Number(v.depositos_eliminados) || 0),
-    0
-  );
-  const totalDepTratados = form.visits.reduce(
-    (a, v) => a + (Number(v.qtde_dep_tratados) || 0),
-    0
-  );
+  const totalImoveis = v20.filter(visitIsFilled).length;
+  const totalFocos = v20.filter((vi) => vi.imovel_com_foco).length;
+  const totalTratados = v20.filter((vi) => vi.imovel_tratado).length;
+  const totalDepElim = v20.reduce((a, vi) => a + (Number(vi.depositos_eliminados) || 0), 0);
+  const totalDepTrat = v20.reduce((a, vi) => a + (Number(vi.qtde_dep_tratados) || 0), 0);
 
   const formatDate = (iso) => {
-    if (!iso) return "—";
+    if (!iso) return "";
     try {
       const [y, m, d] = iso.split("-");
       return `${d}/${m}/${y}`;
-    } catch {
-      return iso;
-    }
+    } catch { return iso; }
   };
+
+  // ============ Cells helpers ============
+  const Th = ({ children, colSpan, rowSpan, className = "" }) => (
+    <th colSpan={colSpan} rowSpan={rowSpan} className={`d1-h ${className}`}>{children}</th>
+  );
+  const Td = ({ children, colSpan, rowSpan, className = "", style }) => (
+    <td colSpan={colSpan} rowSpan={rowSpan} className={`d1-c ${className}`} style={style}>{children}</td>
+  );
 
   return (
     <div className="print-d1-wrap">
       {/* Controles (não imprimem) */}
       <div className="no-print sticky top-0 z-30 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-3 shadow-sm">
-        <button
-          onClick={() => navigate(-1)}
-          className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center"
-          data-testid="print-back"
-        >
+        <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center" data-testid="print-back">
           <ArrowLeft className="w-5 h-5 text-slate-700" />
         </button>
         <div className="flex-1">
@@ -87,163 +80,234 @@ const PrintD1 = () => {
         </button>
       </div>
 
-      <div className="print-page">
-        {/* Cabeçalho oficial */}
-        <div className="d1-title">
-          <div>PROGRAMA NACIONAL DE CONTROLE DA DENGUE – PNCD</div>
+      <div className="print-page d1-page">
+        {/* Título oficial */}
+        <div className="d1-title-block">
+          <div className="d1-title">PROGRAMA NACIONAL DE CONTROLE DA DENGUE – PNCD</div>
           <div className="d1-subtitle">RESUMO DIÁRIO DO SERVIÇO ANTIVETORIAL</div>
         </div>
 
-        {/* Identificação */}
+        {/* ====== Cabeçalho de identificação (linhas 4-5) ====== */}
         <table className="d1-table">
+          <colgroup>
+            <col style={{ width: "5%" }} /><col style={{ width: "5%" }} /><col style={{ width: "5%" }} />
+            <col style={{ width: "4%" }} /><col style={{ width: "4%" }} /><col style={{ width: "4%" }} />
+            <col style={{ width: "4%" }} /><col style={{ width: "5%" }} /><col style={{ width: "4%" }} />
+            <col style={{ width: "4%" }} /><col style={{ width: "4%" }} /><col style={{ width: "4%" }} />
+            <col style={{ width: "4%" }} /><col style={{ width: "4%" }} /><col style={{ width: "4%" }} />
+            <col style={{ width: "4%" }} /><col style={{ width: "4%" }} /><col style={{ width: "4%" }} />
+            <col style={{ width: "4%" }} /><col style={{ width: "4%" }} /><col style={{ width: "4%" }} />
+            <col style={{ width: "4%" }} /><col style={{ width: "4%" }} /><col style={{ width: "4%" }} />
+            <col style={{ width: "3%" }} /><col style={{ width: "3%" }} /><col style={{ width: "3%" }} />
+            <col style={{ width: "3%" }} /><col style={{ width: "3%" }} /><col style={{ width: "3%" }} />
+            <col style={{ width: "3%" }} /><col style={{ width: "3%" }} />
+          </colgroup>
           <tbody>
             <tr>
-              <th>Município</th>
-              <td colSpan={3}>{form.municipio || "—"}</td>
-              <th>Código e Nome da Localidade</th>
-              <td colSpan={3}>{form.localidade || "—"}</td>
-              <th>Categ.</th>
-              <td>{form.categoria || "—"}</td>
-              <th>Zona</th>
-              <td>{form.zona || "—"}</td>
-              <th>Tipo</th>
-              <td>{form.tipo || "—"}</td>
-              <th>Folha</th>
-              <td>{form.folha || "—"}</td>
+              <Th colSpan={6}>Município</Th>
+              <Th colSpan={1}></Th>
+              <Th colSpan={7}>Código e Nome da Localidade</Th>
+              <Th colSpan={1}></Th>
+              <Th colSpan={6}>Categ. da Localidade</Th>
+              <Th colSpan={1}></Th>
+              <Th colSpan={2}>Zona</Th>
+              <Th colSpan={1}></Th>
+              <Th colSpan={3}>Tipo</Th>
+              <Th colSpan={1}></Th>
+              <Th colSpan={2}>Folha</Th>
             </tr>
             <tr>
-              <th>Data</th>
-              <td>{formatDate(form.data_atividade)}</td>
-              <th>Atividade</th>
-              <td colSpan={9}>{ativ}</td>
-              <th>Quart. Trab.</th>
-              <td>{form.quarteiroes_trabalhados || "—"}</td>
-              <th>Quart. Conc.</th>
-              <td>{form.quarteiroes_concluidos || "—"}</td>
+              <Td colSpan={6}>{form.municipio || ""}</Td>
+              <Td colSpan={1}></Td>
+              <Td colSpan={7}>{form.localidade || ""}</Td>
+              <Td colSpan={1}></Td>
+              <Td colSpan={6}>{form.categoria || ""}</Td>
+              <Td colSpan={1}></Td>
+              <Td colSpan={2}>{form.zona || ""}</Td>
+              <Td colSpan={1}></Td>
+              <Td colSpan={3}>{form.tipo || ""}</Td>
+              <Td colSpan={1}></Td>
+              <Td colSpan={2}>{form.folha || ""}</Td>
+            </tr>
+            <tr><td colSpan={32} className="d1-gap"></td></tr>
+            <tr>
+              <Th colSpan={6}>Data da Atividade</Th>
+              <Th colSpan={1}></Th>
+              <Th colSpan={15}>Atividade</Th>
+              <Th colSpan={6} rowSpan={2}>Nº de Imóveis Trabalhados por Tipo</Th>
+              <Th colSpan={4} rowSpan={2}>Nº de Imóveis</Th>
+            </tr>
+            <tr>
+              <Td colSpan={6}>{formatDate(form.data_atividade)}</Td>
+              <Td colSpan={1}></Td>
+              <Td colSpan={15} className="d1-atividade">
+                1 – Levantamento de Índice | 2 – L.I + Tratamento | 3 – Ponto Estratégico | 4 – Tratamento{" "}
+                <br />5 – D. F. – Delimitação de Foco | 6 – PVE – Pesquisa Vetorial Espacial
+              </Td>
             </tr>
           </tbody>
         </table>
 
-        {/* Tabela de visitas */}
+        {/* ====== Tabela principal (linha 9 = cabeçalho; linhas 10-29 = 20 visitas; linha 30 = TOTAL) ====== */}
         <table className="d1-table d1-visits">
           <thead>
             <tr>
-              <th rowSpan={2}>Nº Quart.</th>
-              <th rowSpan={2}>Seq.</th>
-              <th rowSpan={2}>Lado</th>
-              <th rowSpan={2} className="w-logradouro">Nome do Logradouro</th>
-              <th rowSpan={2}>Número</th>
-              <th rowSpan={2}>Seq.</th>
-              <th rowSpan={2}>Complemento</th>
-              <th rowSpan={2}>Tipo Imóvel</th>
-              <th rowSpan={2}>Hora Entrada</th>
-              <th rowSpan={2}>Tipo Visita</th>
-              <th rowSpan={2}>Pend.</th>
-              <th rowSpan={2}>Nº Dep. Elim.</th>
-              <th rowSpan={2}>Imóvel c/Foco</th>
-              <th rowSpan={2}>Imóvel Trat.</th>
-              <th colSpan={3}>Tratamento Focal</th>
-            </tr>
-            <tr>
-              <th>Tipo</th>
-              <th>Quant. (g)</th>
-              <th>Qtd Dep. Trat.</th>
+              <Th>Nº Quart.</Th>
+              <Th>Seq.</Th>
+              <Th>Lado</Th>
+              <Th colSpan={6}>Nome do Logradouro</Th>
+              <Th>Número</Th>
+              <Th>Sequência</Th>
+              <Th>Complemento</Th>
+              <Th>Tipo do Imóvel</Th>
+              <Th>Hora Entrada</Th>
+              <Th>Tipo da Visita</Th>
+              <Th>Pendência</Th>
+              <Th>Nº Depósitos Eliminados</Th>
+              <Th>Imóvel c/ foco</Th>
+              <Th>Imóvel Trat.</Th>
+              <Th>Tipo</Th>
+              <Th>Quant. (g)</Th>
+              <Th>Qtde. Dep. Trat.</Th>
+              <Th>Residência</Th>
+              <Th>Comércio</Th>
+              <Th>Terreno Baldio</Th>
+              <Th>P.E</Th>
+              <Th>Outros</Th>
+              <Th>Total</Th>
+              <Th>Tratamento Focal</Th>
+              <Th>Casas Fechadas</Th>
+              <Th>Recuperadas</Th>
+              <Th>Informados</Th>
             </tr>
           </thead>
           <tbody>
-            {form.visits.map((v, i) => (
-              <tr key={i} className={visitIsFilled(v) ? "filled" : "empty"}>
-                <td>{v.quarteirao || ""}</td>
-                <td>{v.sequencia || ""}</td>
-                <td>{v.lado || ""}</td>
-                <td className="logradouro">{v.logradouro || ""}</td>
-                <td>{v.numero || ""}</td>
-                <td>{v.seq_numero || ""}</td>
-                <td>{v.complemento || ""}</td>
-                <td>{v.tipo_imovel || ""}</td>
-                <td>{v.hora_entrada || ""}</td>
-                <td>{v.tipo_visita || ""}</td>
-                <td>{v.pendencia || ""}</td>
-                <td className="num">{v.depositos_eliminados ?? ""}</td>
-                <td className="check">{v.imovel_com_foco ? "✓" : ""}</td>
-                <td className="check">{v.imovel_tratado ? "✓" : ""}</td>
-                <td>{v.larvicida_tipo || ""}</td>
-                <td className="num">{v.larvicida_quantidade ?? ""}</td>
-                <td className="num">{v.qtde_dep_tratados ?? ""}</td>
-              </tr>
-            ))}
+            {v20.map((vi, idx) => {
+              const filled = visitIsFilled(vi);
+              // Coluna lateral direita: ocorre apenas em algumas linhas como cabeçalhos/dados especiais
+              const renderRight = () => {
+                // idx 0 = row 10 = first row of data
+                // idx 0 -> totais por tipo + tratamento focal + casas fechadas + recup + informados
+                if (idx === 0) {
+                  return (
+                    <>
+                      <Td className="num">{tot.R || ""}</Td>
+                      <Td className="num">{tot.C || ""}</Td>
+                      <Td className="num">{tot.TB || ""}</Td>
+                      <Td className="num">{tot.PE || ""}</Td>
+                      <Td className="num">{tot.O || ""}</Td>
+                      <Td className="num strong">{totalImoveis || ""}</Td>
+                      <Td className="num">{totalTratados || ""}</Td>
+                      <Td className="num">{form.casas_fechadas || ""}</Td>
+                      <Td className="num">{form.recuperadas || ""}</Td>
+                      <Td className="num">{form.informados || ""}</Td>
+                    </>
+                  );
+                }
+                // idx 3 = row 13: header "Depósitos" (X13:AE13 = cols 24..31 → 8 cols)
+                if (idx === 3) {
+                  return <Td colSpan={10} className="strong center">Depósitos</Td>;
+                }
+                // idx 4 = row 14: "Eliminados" (X14:Y15 rowSpan=2, 2 cols), "Tratados" (Z14:AE14, 6 cols)
+                if (idx === 4) {
+                  return (
+                    <>
+                      <Td colSpan={2} rowSpan={2} className="strong center">Eliminados</Td>
+                      <Td colSpan={8} className="strong center">Tratados</Td>
+                    </>
+                  );
+                }
+                // idx 5 = row 15: blank under Eliminados (rowspan), Tipo / Quant.(g) / Quant.dep.trat
+                if (idx === 5) {
+                  return (
+                    <>
+                      <Td colSpan={1} className="strong center">Tipo</Td>
+                      <Td colSpan={2} className="strong center">Quant. (g)</Td>
+                      <Td colSpan={5} className="strong center">Quant. dep. trat.</Td>
+                    </>
+                  );
+                }
+                // idx 6 = row 16: dados dos depósitos (somatórios)
+                if (idx === 6) {
+                  return (
+                    <>
+                      <Td colSpan={2} className="num">{totalDepElim || ""}</Td>
+                      <Td colSpan={1} className="center">{form.depositos_tratados?.tipo || ""}</Td>
+                      <Td colSpan={2} className="num">{form.depositos_tratados?.quantidade ?? ""}</Td>
+                      <Td colSpan={5} className="num">{totalDepTrat || ""}</Td>
+                    </>
+                  );
+                }
+                // idx 7 = row 17: vazio
+                if (idx === 7) return <Td colSpan={10}></Td>;
+                // idx 8 = row 18: "Nº e Sequência dos Quarteirões Trabalhados"
+                if (idx === 8) return <Td colSpan={10} className="strong center">Nº e Sequência dos Quarteirões Trabalhados</Td>;
+                if (idx === 9 || idx === 10) {
+                  // dado dos quarteirões trabalhados
+                  return <Td colSpan={10} className="center">{idx === 9 ? (form.quarteiroes_trabalhados || "") : ""}</Td>;
+                }
+                // idx 11 = row 21: "Nº e Sequência dos Quarteirões Concluídos"
+                if (idx === 11) return <Td colSpan={10} className="strong center">Nº e Sequência dos Quarteirões Concluídos</Td>;
+                if (idx === 12 || idx === 13) {
+                  return <Td colSpan={10} className="center">{idx === 12 ? (form.quarteiroes_concluidos || "") : ""}</Td>;
+                }
+                // idx 14 = row 24: "Classificação de Depósitos"
+                if (idx === 14) return <Td colSpan={10} className="strong center">Classificação de Depósitos</Td>;
+                // idx 15..19 (rows 25..29): A1, A2, B, C, D1
+                const classRows = [
+                  "A1 - Caixa d'água (elevado)",
+                  "A2 - Outros depósitos de armazenamento de água (baixo)",
+                  "B - Pequenos depósitos móveis",
+                  "C - Depósitos fixos",
+                  "D1 - Pneus e outros materiais rodantes",
+                ];
+                if (idx >= 15 && idx <= 19) {
+                  return <Td colSpan={10} className="left small">{classRows[idx - 15]}</Td>;
+                }
+                return null;
+              };
+
+              return (
+                <tr key={idx} className={filled ? "filled" : "empty"}>
+                  <Td className="center">{vi.quarteirao || ""}</Td>
+                  <Td className="center">{vi.sequencia || ""}</Td>
+                  <Td className="center">{vi.lado || ""}</Td>
+                  <Td colSpan={6} className="logradouro">{vi.logradouro || ""}</Td>
+                  <Td className="center">{vi.numero || ""}</Td>
+                  <Td className="center">{vi.seq_numero || ""}</Td>
+                  <Td className="center">{vi.complemento || ""}</Td>
+                  <Td className="center">{vi.tipo_imovel || ""}</Td>
+                  <Td className="center">{vi.hora_entrada || ""}</Td>
+                  <Td className="center">{vi.tipo_visita || ""}</Td>
+                  <Td className="center">{vi.pendencia || ""}</Td>
+                  <Td className="num">{vi.depositos_eliminados ?? ""}</Td>
+                  <Td className="check">{vi.imovel_com_foco ? "✓" : ""}</Td>
+                  <Td className="check">{vi.imovel_tratado ? "✓" : ""}</Td>
+                  <Td className="center">{vi.larvicida_tipo || ""}</Td>
+                  <Td className="num">{vi.larvicida_quantidade ?? ""}</Td>
+                  <Td className="num">{vi.qtde_dep_tratados ?? ""}</Td>
+                  {renderRight()}
+                </tr>
+              );
+            })}
+            {/* TOTAL row (linha 30) */}
             <tr className="totals">
-              <td colSpan={11} className="lbl">TOTAL</td>
-              <td className="num">{totalDepEliminados || 0}</td>
-              <td className="check">{totalFocos}</td>
-              <td className="check">{totalTratados}</td>
-              <td>{form.depositos_tratados?.tipo || ""}</td>
-              <td className="num">{form.depositos_tratados?.quantidade ?? ""}</td>
-              <td className="num">{totalDepTratados || 0}</td>
+              <Td colSpan={16} className="right strong">TOTAL</Td>
+              <Td className="num strong">{totalDepElim || 0}</Td>
+              <Td className="check strong">{totalFocos || 0}</Td>
+              <Td className="check strong">{totalTratados || 0}</Td>
+              <Td className="center">{form.depositos_tratados?.tipo || ""}</Td>
+              <Td className="num strong">{form.depositos_tratados?.quantidade ?? ""}</Td>
+              <Td className="num strong">{totalDepTrat || 0}</Td>
+              <Td colSpan={10} className="left small">D2 - Lixo (recipientes plásticos, latas), sucatas e entulhos</Td>
             </tr>
-          </tbody>
-        </table>
-
-        {/* Bloco de totais por tipo de imóvel */}
-        <div className="d1-bottom">
-          <table className="d1-table d1-sumtipos">
-            <thead>
-              <tr>
-                <th colSpan={6}>Nº de Imóveis Trabalhados por Tipo</th>
-                <th>Total</th>
-              </tr>
-              <tr>
-                <th>Residência</th>
-                <th>Comércio</th>
-                <th>Terreno Baldio</th>
-                <th>P.E.</th>
-                <th>Outros</th>
-                <th>—</th>
-                <th>Imóveis</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="num">{totaisTipo.R || 0}</td>
-                <td className="num">{totaisTipo.C || 0}</td>
-                <td className="num">{totaisTipo.TB || 0}</td>
-                <td className="num">{totaisTipo.PE || 0}</td>
-                <td className="num">{totaisTipo.O || 0}</td>
-                <td></td>
-                <td className="num strong">{totalImoveis}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <table className="d1-table d1-resumo">
-            <thead>
-              <tr>
-                <th colSpan={3}>Resumo da Atividade</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th>Casas Fechadas</th>
-                <th>Recuperadas</th>
-                <th>Informados</th>
-              </tr>
-              <tr>
-                <td className="num">{form.casas_fechadas || 0}</td>
-                <td className="num">{form.recuperadas || 0}</td>
-                <td className="num">{form.informados || 0}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Assinaturas */}
-        <table className="d1-table d1-sign">
-          <tbody>
-            <tr>
-              <th>Assinatura do Agente</th>
-              <td>{form.assinatura_agente || ""}</td>
-              <th>Assinatura do Supervisor</th>
-              <td>{form.assinatura_supervisor || ""}</td>
+            {/* Assinaturas (linha 31) */}
+            <tr className="signatures">
+              <Td colSpan={5} className="strong">Assinatura do Agente</Td>
+              <Td colSpan={5} className="sig">{form.assinatura_agente || ""}</Td>
+              <Td colSpan={6} className="strong">Assinatura do Supervisor</Td>
+              <Td colSpan={6} className="sig">{form.assinatura_supervisor || ""}</Td>
+              <Td colSpan={10} className="left small">E - Depósitos naturais</Td>
             </tr>
           </tbody>
         </table>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { X, Save, Trash2 } from "lucide-react";
-import { TIPOS_IMOVEL } from "@/constants/d1";
+import { TIPOS_IMOVEL, LADOS } from "@/constants/d1";
 import { catalogApi } from "@/lib/api";
 
 const inputCls =
@@ -109,14 +109,14 @@ const ImovelEditor = ({ open, mode, imovel, defaultQuarteirao, onClose, onSaved,
               <input className={inputCls} value={form.quarteirao} onChange={(e) => set("quarteirao", e.target.value)} placeholder="1" data-testid="ed-quarteirao" />
             </Field>
             <Field label="Lado">
-              <input
+              <select
                 className={inputCls}
                 value={form.lado}
                 onChange={(e) => set("lado", e.target.value)}
-                placeholder="1, 2, 3…"
-                inputMode="numeric"
                 data-testid="ed-lado"
-              />
+              >
+                {LADOS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
             </Field>
           </div>
 

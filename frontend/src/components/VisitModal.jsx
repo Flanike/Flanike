@@ -122,14 +122,14 @@ const VisitModal = ({ open, index, visit, onChange, onClose }) => {
             <input type="number" inputMode="numeric" className={inputCls} value={visit.depositos_eliminados ?? ""} onChange={(e) => set("depositos_eliminados", e.target.value)} data-testid="visit-dep-eliminados" />
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 cursor-pointer">
-              <input type="checkbox" className="w-5 h-5 accent-blue-700" checked={visit.imovel_com_foco} onChange={(e) => set("imovel_com_foco", e.target.checked)} data-testid="visit-foco" />
-              <span className="text-sm font-medium text-slate-800">Imóvel c/ foco</span>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 cursor-pointer min-w-0">
+              <input type="checkbox" className="w-5 h-5 accent-blue-700 shrink-0" checked={visit.imovel_com_foco} onChange={(e) => set("imovel_com_foco", e.target.checked)} data-testid="visit-foco" />
+              <span className="text-sm font-medium text-slate-800 whitespace-nowrap">Imóvel c/ foco</span>
             </label>
-            <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 cursor-pointer">
-              <input type="checkbox" className="w-5 h-5 accent-blue-700" checked={visit.imovel_tratado} onChange={(e) => set("imovel_tratado", e.target.checked)} data-testid="visit-tratado" />
-              <span className="text-sm font-medium text-slate-800">Imóvel tratado</span>
+            <label className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 cursor-pointer min-w-0">
+              <input type="checkbox" className="w-5 h-5 accent-blue-700 shrink-0" checked={visit.imovel_tratado} onChange={(e) => set("imovel_tratado", e.target.checked)} data-testid="visit-tratado" />
+              <span className="text-sm font-medium text-slate-800 whitespace-nowrap">Imóvel tratado</span>
             </label>
           </div>
 

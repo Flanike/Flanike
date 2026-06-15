@@ -30,9 +30,7 @@ export const PENDENCIAS = [
 
 export const LADOS = [
   { value: "", label: "—" },
-  { value: "P", label: "P – Par" },
-  { value: "I", label: "I – Ímpar" },
-  { value: "U", label: "U – Único" },
+  ...Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) })),
 ];
 
 export const LARVICIDAS = [
