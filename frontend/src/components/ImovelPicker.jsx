@@ -15,7 +15,7 @@ const tipoBadge = {
   O: "bg-blue-50 text-blue-700 border-blue-200",
 };
 
-const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
+const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "", extraVisitedKeys = [] }) => {
   const [quarteiroes, setQuarteiroes] = useState([]);
   const [qt, setQt] = useState(defaultQuarteirao);
   const [imoveis, setImoveis] = useState([]);
@@ -32,14 +32,24 @@ const ImovelPicker = ({ open, onClose, onPick, defaultQuarteirao = "" }) => {
     catalogApi.quarteiroes().then(setQuarteiroes).catch(() => {});
   };
 
+  // Estabiliza a referência dos extraVisitedKeys para evitar loop no useEffect
+  const extraKeysStr = (extraVisitedKeys || []).join("|");
   useEffect(() => {
     if (!open) return;
     catalogApi.quarteiroes().then(setQuarteiroes).catch(() => setQuarteiroes([]));
     catalogApi
       .visited()
-      .then((v) => setVisitedSet(new Set(v.keys || [])))
-      .catch(() => setVisitedSet(new Set()));
-  }, [open]);
+      .then((v) => {
+        const base = new Set(v.keys || []);
+        extraKeysStr.split("|").forEach((k) => k && base.add(k));
+        setVisitedSet(base);
+      })
+      .catch(() => {
+        const base = new Set();
+        extraKeysStr.split("|").forEach((k) => k && base.add(k));
+        setVisitedSet(base);
+      });
+  }, [open, extraKeysStr]);
 
   useEffect(() => {
     setQt(defaultQuarteirao);

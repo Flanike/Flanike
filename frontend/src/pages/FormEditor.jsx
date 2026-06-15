@@ -618,6 +618,7 @@ const FormEditor = () => {
         visit={visitOpenIdx !== null ? form.visits[visitOpenIdx] : {}}
         onChange={(nv) => setVisit(visitOpenIdx, nv)}
         onClose={() => setVisitOpenIdx(null)}
+        currentFormVisits={form.visits}
       />
     </div>
   );

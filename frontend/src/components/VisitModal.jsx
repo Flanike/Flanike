@@ -3,6 +3,7 @@ import { X, Check, Database } from "lucide-react";
 import {
   TIPOS_IMOVEL, TIPOS_VISITA, PENDENCIAS, LADOS, LARVICIDAS,
 } from "@/constants/d1";
+import { imovelKey } from "@/constants/d1";
 import ImovelPicker from "@/components/ImovelPicker";
 
 const Field = ({ label, children }) => (
@@ -15,10 +16,15 @@ const Field = ({ label, children }) => (
 const inputCls =
   "w-full border border-slate-300 rounded-lg px-3 py-2.5 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder-slate-400";
 
-const VisitModal = ({ open, index, visit, onChange, onClose }) => {
+const VisitModal = ({ open, index, visit, onChange, onClose, currentFormVisits = [] }) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   if (!open) return null;
   const set = (key, val) => onChange({ ...visit, [key]: val });
+
+  // Chaves dos imóveis já preenchidos no formulário atual (sessão não salva)
+  const currentKeys = (currentFormVisits || [])
+    .filter((v, i) => i !== index && v && (v.logradouro || v.numero || v.quarteirao))
+    .map((v) => imovelKey(v));
 
   const handlePick = (im) => {
     onChange({
@@ -167,6 +173,7 @@ const VisitModal = ({ open, index, visit, onChange, onClose }) => {
         onClose={() => setPickerOpen(false)}
         onPick={handlePick}
         defaultQuarteirao={visit.quarteirao || ""}
+        extraVisitedKeys={currentKeys}
       />
     </div>
   );

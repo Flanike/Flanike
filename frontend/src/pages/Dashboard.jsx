@@ -140,7 +140,7 @@ const Dashboard = () => {
   return (
     <div className="app-shell pb-28">
       {/* Header */}
-      <header className="px-5 pt-8 pb-6 bg-white border-b border-slate-200">
+      <header className="px-5 pt-14 pb-6 bg-white border-b border-slate-200">
         <div className="flex items-start justify-between gap-3 mb-1">
           <div className="flex items-center gap-3">
             <NicolasKelpLogo size={48} />

@@ -218,8 +218,10 @@ input[type=number] {
     }
 }
 
-/* Move o badge "Made with Emergent" para a esquerda */
+/* Move o badge "Made with Emergent" para o canto superior esquerdo */
 #emergent-badge {
+    top: 16px !important;
     left: 16px !important;
+    bottom: auto !important;
     right: auto !important;
 }
